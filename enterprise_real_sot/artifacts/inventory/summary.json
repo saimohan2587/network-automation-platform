@@ -1,0 +1,12 @@
+[
+  {
+    "device": "sw-access-01",
+    "status": "SUCCESS",
+    "fields_count": 25
+  },
+  {
+    "device": "sw-access-07",
+    "status": "SUCCESS",
+    "fields_count": 25
+  }
+]

@@ -1,0 +1,26 @@
+field,value,source_command
+device_name,sw-access-01,NetBox/SSH target
+hostname,SW1,show running-config | include hostname
+management_ip,192.168.1.20,SSH connection parameter
+device_type,WS-C3750X-24P-S (Layer-2 Access Switch),show version / show inventory
+vendor,Cisco,show version / show inventory
+model,WS-C3750X-24P-S,show version / show inventory
+serial_number,FDO1503P0F4,show version / show inventory
+location,Not Available from device,N/A (Maintained in NetBox DCIM)
+role,Not Available from device,N/A (Maintained in NetBox DCIM)
+environment,Not Available from device,N/A (Maintained in NetBox DCIM)
+os,Cisco IOS,show version
+ios_firmware_version,15.2(4)E10,show version
+bootloader,"C3750E Boot Loader (C3750X-HBOOT-M) Version 12.2(53r)SE1, RELEASE SOFTWARE (fc1)",show version / show boot
+configuration_backup_status,"Present on switch (flash:/config.text, flash:/private-config.text)",dir flash: / show boot
+last_upgrade,Last reload reason: power-on | Image: flash:c3750e-universalk9-mz.152-4.E10.bin,show version / dir flash:
+purchase_warranty_amc_info,Not Available from device,N/A (Commercial data not stored on switch CLI)
+eol_eos_oem_info,Not Available from device,N/A (Vendor lifecycle policy data not stored on switch CLI)
+cpu_utilization,"5sec: 21%/0%, 1min: 15%, 5min: 14%",show processes cpu
+memory_utilization,"Total: 149.3 MB, Used: 60.5 MB (40.5%), Free: 88.8 MB (59.5%)",show memory statistics
+temperature_status,SYSTEM TEMPERATURE is OK,show env temperature
+psu_status,PS-3A: UNKNOWN (No); PS-3B: C3KX-PWR-715WAC (OK),show env power
+fan_status,FAN 1 is OK; FAN 2 is OK; FAN PS-1 is NOT INITIALIZED; FAN PS-2 is OK,show env fan
+interface_errors,0 errors reported across 56 interfaces,show interfaces counters errors
+uptime,"2 hours, 51 minutes",show version
+collection_timestamp,2026-08-08T12:23:10.413539,System Clock

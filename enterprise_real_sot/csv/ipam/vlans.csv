@@ -1,0 +1,8 @@
+vid,name,status,description
+10,Finance,active,Finance Department VLAN
+20,Engineering,active,Engineering Department VLAN
+30,Guest,active,Guest Access VLAN
+40,Voice,active,IP Voice VLAN
+50,Printers,active,Printer Network VLAN
+60,Servers,active,Server Farm VLAN
+100,MGMT,active,Management VLAN

@@ -1,0 +1,12 @@
+name,device_role,device_type,platform,site,location,rack,position,face,status
+sw-access-01,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,10,front,active
+sw-access-02,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,12,front,active
+sw-access-03,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,14,front,active
+sw-access-04,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,16,front,active
+sw-access-05,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,18,front,active
+sw-access-06,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,20,front,active
+sw-dist-01,distribution-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,30,front,active
+sw-dist-02,distribution-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,32,front,active
+sw-core-01,core-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,36,front,active
+sw-core-02,core-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,38,front,active
+sw-access-07,layer-2-access-switch,ws-c3750x-24p,cisco-ios,hyderabad,addagutta-society,JNTU-LAB-RACK-01,22,front,active

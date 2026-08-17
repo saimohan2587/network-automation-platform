@@ -1,0 +1,127 @@
+[
+  {
+    "field": "device_name",
+    "value": "sw-access-01",
+    "source_command": "NetBox/SSH target"
+  },
+  {
+    "field": "hostname",
+    "value": "SW1",
+    "source_command": "show running-config | include hostname"
+  },
+  {
+    "field": "management_ip",
+    "value": "192.168.1.20",
+    "source_command": "SSH connection parameter"
+  },
+  {
+    "field": "device_type",
+    "value": "WS-C3750X-24P-S (Layer-2 Access Switch)",
+    "source_command": "show version / show inventory"
+  },
+  {
+    "field": "vendor",
+    "value": "Cisco",
+    "source_command": "show version / show inventory"
+  },
+  {
+    "field": "model",
+    "value": "WS-C3750X-24P-S",
+    "source_command": "show version / show inventory"
+  },
+  {
+    "field": "serial_number",
+    "value": "FDO1503P0F4",
+    "source_command": "show version / show inventory"
+  },
+  {
+    "field": "location",
+    "value": "Not Available from device",
+    "source_command": "N/A (Maintained in NetBox DCIM)"
+  },
+  {
+    "field": "role",
+    "value": "Not Available from device",
+    "source_command": "N/A (Maintained in NetBox DCIM)"
+  },
+  {
+    "field": "environment",
+    "value": "Not Available from device",
+    "source_command": "N/A (Maintained in NetBox DCIM)"
+  },
+  {
+    "field": "os",
+    "value": "Cisco IOS",
+    "source_command": "show version"
+  },
+  {
+    "field": "ios_firmware_version",
+    "value": "15.2(4)E10",
+    "source_command": "show version"
+  },
+  {
+    "field": "bootloader",
+    "value": "C3750E Boot Loader (C3750X-HBOOT-M) Version 12.2(53r)SE1, RELEASE SOFTWARE (fc1)",
+    "source_command": "show version / show boot"
+  },
+  {
+    "field": "configuration_backup_status",
+    "value": "Present on switch (flash:/config.text, flash:/private-config.text)",
+    "source_command": "dir flash: / show boot"
+  },
+  {
+    "field": "last_upgrade",
+    "value": "Last reload reason: power-on | Image: flash:c3750e-universalk9-mz.152-4.E10.bin",
+    "source_command": "show version / dir flash:"
+  },
+  {
+    "field": "purchase_warranty_amc_info",
+    "value": "Not Available from device",
+    "source_command": "N/A (Commercial data not stored on switch CLI)"
+  },
+  {
+    "field": "eol_eos_oem_info",
+    "value": "Not Available from device",
+    "source_command": "N/A (Vendor lifecycle policy data not stored on switch CLI)"
+  },
+  {
+    "field": "cpu_utilization",
+    "value": "5sec: 21%/0%, 1min: 15%, 5min: 14%",
+    "source_command": "show processes cpu"
+  },
+  {
+    "field": "memory_utilization",
+    "value": "Total: 149.3 MB, Used: 60.5 MB (40.5%), Free: 88.8 MB (59.5%)",
+    "source_command": "show memory statistics"
+  },
+  {
+    "field": "temperature_status",
+    "value": "SYSTEM TEMPERATURE is OK",
+    "source_command": "show env temperature"
+  },
+  {
+    "field": "psu_status",
+    "value": "PS-3A: UNKNOWN (No); PS-3B: C3KX-PWR-715WAC (OK)",
+    "source_command": "show env power"
+  },
+  {
+    "field": "fan_status",
+    "value": "FAN 1 is OK; FAN 2 is OK; FAN PS-1 is NOT INITIALIZED; FAN PS-2 is OK",
+    "source_command": "show env fan"
+  },
+  {
+    "field": "interface_errors",
+    "value": "0 errors reported across 56 interfaces",
+    "source_command": "show interfaces counters errors"
+  },
+  {
+    "field": "uptime",
+    "value": "2 hours, 51 minutes",
+    "source_command": "show version"
+  },
+  {
+    "field": "collection_timestamp",
+    "value": "2026-08-08T12:23:10.413539",
+    "source_command": "System Clock"
+  }
+]

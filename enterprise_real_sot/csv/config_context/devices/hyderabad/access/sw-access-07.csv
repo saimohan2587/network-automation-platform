@@ -1,0 +1,15 @@
+key,value
+aaa,false
+cdp,false
+dhcp_snooping,false
+dns,false
+etherchannel,false
+ipv6,false
+lldp,false
+ntp,false
+port_security,false
+snmp,false
+stp,false
+syslog,false
+vlans,"[]"
+vtp,false

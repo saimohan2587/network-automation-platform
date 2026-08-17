@@ -1,0 +1,4 @@
+name,slug,color,vm_role
+Layer-2 Access Switch,layer-2-access-switch,00ff00,false
+Core Switch,core-switch,ff0000,false
+Distribution Switch,distribution-switch,0000ff,false

@@ -1,0 +1,17 @@
+{
+  "execution_time": "2026-08-08 10:49:38",
+  "device_count": 1,
+  "checked_devices": 1,
+  "compliant_devices": 0,
+  "drifted_devices": 1,
+  "ssh_failed_devices": 0,
+  "total_drifts": 8,
+  "drift_summary": {
+    "dns": 1,
+    "lldp": 1,
+    "ntp": 1,
+    "snmp": 2,
+    "stp": 2,
+    "vtp": 1
+  }
+}

@@ -1,0 +1,5 @@
+key,value
+ipv6,"{""unicast_routing"": true}"
+ospf,"{""process_id"": 1, ""router_id"": ""10.255.255.1"", ""area"": ""0.0.0.0"", ""networks"": [{""ip"": ""10.10.1.0/30"", ""area"": 0}, {""ip"": ""10.10.1.4/30"", ""area"": 0}, {""ip"": ""10.10.0.0/30"", ""area"": 0}], ""default_information_originate"": true}"
+static_routes,"[{""destination"": ""0.0.0.0/0"", ""next_hop"": ""10.10.100.254""}]"
+interfaces,"[{""name"": ""Vlan100"", ""ipv6"": {""addresses"": [""2001:db8:100::1/64""]}}]"

@@ -1,0 +1,400 @@
+{
+  "metadata": {
+    "source_device": "sw-access-01",
+    "target_device": "sw-access-07",
+    "generated_at": "2026-08-10T15:39:41.613059",
+    "policy_version": "1.0",
+    "status": "STAGED_AWAITING_APPROVAL"
+  },
+  "protected_inventory": {
+    "target_device": "sw-access-07",
+    "target_management_interface": "Vlan1",
+    "target_management_ip": "192.168.1.2",
+    "preserve_target_mgmt_ip": true,
+    "credentials_protected": true
+  },
+  "global_context_intent": {
+    "dns": {
+      "domain_name": "enterprise.corp",
+      "domain_lookup": true
+    },
+    "ntp": {
+      "servers": [
+        "10.10.100.1",
+        "10.10.100.2"
+      ],
+      "source_interface": ""
+    },
+    "syslog": {
+      "facility": "local7",
+      "trap": "informational"
+    },
+    "snmp": {
+      "location": "Hyderabad, Addagutta Society, JNTU-LAB-RACK-01",
+      "contact": "NetOps Team <netops@enterprise.corp>"
+    },
+    "stp": {
+      "mode": "rapid-pvst",
+      "bpduguard_default": true,
+      "portfast_default": true
+    },
+    "vtp": {
+      "mode": "off"
+    }
+  },
+  "device_local_intent": {
+    "vlans": [
+      {
+        "vid": 10,
+        "name": "Finance_Data",
+        "description": "Finance_Data Segment"
+      },
+      {
+        "vid": 20,
+        "name": "Engineering_Data",
+        "description": "Engineering_Data Segment"
+      },
+      {
+        "vid": 30,
+        "name": "Guest_Data",
+        "description": "Guest_Data Segment"
+      },
+      {
+        "vid": 40,
+        "name": "Voice_VoIP",
+        "description": "Voice_VoIP Segment"
+      },
+      {
+        "vid": 50,
+        "name": "Printers",
+        "description": "Printers Segment"
+      },
+      {
+        "vid": 60,
+        "name": "Local_Servers",
+        "description": "Local_Servers Segment"
+      },
+      {
+        "vid": 99,
+        "name": "Native_VLAN",
+        "description": "Native_VLAN Segment"
+      },
+      {
+        "vid": 100,
+        "name": "Management_Inband",
+        "description": "Management_Inband Segment"
+      }
+    ],
+    "dhcp_snooping": {
+      "enabled": true,
+      "information_option": false,
+      "trusted_interfaces": []
+    },
+    "etherchannel": {
+      "interfaces": {}
+    }
+  },
+  "ipam_vlans_intent": [
+    {
+      "vid": 10,
+      "name": "Finance_Data",
+      "description": "Finance_Data Segment"
+    },
+    {
+      "vid": 20,
+      "name": "Engineering_Data",
+      "description": "Engineering_Data Segment"
+    },
+    {
+      "vid": 30,
+      "name": "Guest_Data",
+      "description": "Guest_Data Segment"
+    },
+    {
+      "vid": 40,
+      "name": "Voice_VoIP",
+      "description": "Voice_VoIP Segment"
+    },
+    {
+      "vid": 50,
+      "name": "Printers",
+      "description": "Printers Segment"
+    },
+    {
+      "vid": 60,
+      "name": "Local_Servers",
+      "description": "Local_Servers Segment"
+    },
+    {
+      "vid": 99,
+      "name": "Native_VLAN",
+      "description": "Native_VLAN Segment"
+    },
+    {
+      "vid": 100,
+      "name": "Management_Inband",
+      "description": "Management_Inband Segment"
+    }
+  ],
+  "dcim_interfaces_intent": [
+    {
+      "name": "FastEthernet0",
+      "description": "",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/1",
+      "description": "Access Port - VLAN 10 (Finance)",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": [],
+      "port_security": {
+        "enabled": true,
+        "max_mac_addresses": 2,
+        "violation": "restrict",
+        "aging_time": 10,
+        "aging_type": "inactivity"
+      }
+    },
+    {
+      "name": "GigabitEthernet1/0/10",
+      "description": "Access Port - VLAN 60 (Servers)",
+      "mode": "access",
+      "untagged_vlan": 60,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/11",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/12",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/13",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/14",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/15",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/16",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/17",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/18",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/19",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/2",
+      "description": "Access Port - VLAN 10 (Finance)",
+      "mode": "access",
+      "untagged_vlan": 10,
+      "tagged_vlans": [],
+      "port_security": {
+        "enabled": true,
+        "max_mac_addresses": 1,
+        "violation": "shutdown",
+        "aging_time": 0,
+        "aging_type": "absolute"
+      }
+    },
+    {
+      "name": "GigabitEthernet1/0/20",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/21",
+      "description": "Trunk Uplink to sw-dist-01",
+      "mode": "trunk",
+      "untagged_vlan": 20,
+      "tagged_vlans": [
+        "100"
+      ]
+    },
+    {
+      "name": "GigabitEthernet1/0/22",
+      "description": "Trunk Uplink to sw-dist-02",
+      "mode": "trunk",
+      "untagged_vlan": 20,
+      "tagged_vlans": [
+        "100"
+      ]
+    },
+    {
+      "name": "GigabitEthernet1/0/23",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/24",
+      "description": "Unused Access Port",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/3",
+      "description": "Access Port - VLAN 20 (Engineering)",
+      "mode": "access",
+      "untagged_vlan": 20,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/4",
+      "description": "Access Port - VLAN 20 (Engineering)",
+      "mode": "access",
+      "untagged_vlan": 20,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/5",
+      "description": "Access Port - VLAN 30 (Guest)",
+      "mode": "access",
+      "untagged_vlan": 30,
+      "tagged_vlans": [],
+      "port_security": {
+        "enabled": true,
+        "max_mac_addresses": 2,
+        "violation": "restrict",
+        "aging_time": 10,
+        "aging_type": "inactivity"
+      }
+    },
+    {
+      "name": "GigabitEthernet1/0/6",
+      "description": "Access Port - VLAN 30 (Guest)",
+      "mode": "access",
+      "untagged_vlan": 30,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/7",
+      "description": "IP Phone Port - VLAN 40 (Voice)",
+      "mode": "access",
+      "untagged_vlan": 40,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/8",
+      "description": "IP Phone Port - VLAN 40 (Voice)",
+      "mode": "access",
+      "untagged_vlan": 40,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/0/9",
+      "description": "Printer Port - VLAN 50 (Printers)",
+      "mode": "access",
+      "untagged_vlan": 50,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/1/1",
+      "description": "Unused SFP Uplink",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/1/2",
+      "description": "Unused SFP Uplink",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/1/3",
+      "description": "Unused SFP Uplink",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "GigabitEthernet1/1/4",
+      "description": "Unused SFP Uplink",
+      "mode": "access",
+      "untagged_vlan": 1,
+      "tagged_vlans": []
+    },
+    {
+      "name": "TenGigabitEthernet1/1/1",
+      "description": "10G SFP+ Uplink 1",
+      "mode": "trunk",
+      "untagged_vlan": 20,
+      "tagged_vlans": []
+    },
+    {
+      "name": "TenGigabitEthernet1/1/2",
+      "description": "10G SFP+ Uplink 2",
+      "mode": "trunk",
+      "untagged_vlan": 20,
+      "tagged_vlans": []
+    }
+  ],
+  "excluded_items": [
+    {
+      "item": "source_management_ip",
+      "value": "192.168.1.20",
+      "reason": "Belongs to legacy switch"
+    },
+    {
+      "item": "unmapped_interfaces",
+      "value": [
+        "Port-channel1",
+        "Vlan10",
+        "Vlan2",
+        "Vlan20"
+      ],
+      "reason": "No target hardware mapping"
+    }
+  ]
+}

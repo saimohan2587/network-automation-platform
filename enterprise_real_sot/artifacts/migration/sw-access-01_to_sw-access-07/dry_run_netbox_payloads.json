@@ -1,0 +1,441 @@
+{
+  "metadata": {
+    "source_device": "sw-access-01",
+    "target_device": "sw-access-07",
+    "target_device_id": 12,
+    "target_management_ip": "192.168.1.2/24",
+    "management_ip_protected": true,
+    "mode": "DRY_RUN_ONLY",
+    "total_interfaces_to_patch": 31
+  },
+  "ipam_vlans_plan": [
+    {
+      "vid": 10,
+      "name": "Finance_Data",
+      "action": "EXISTS",
+      "netbox_vlan_id": 2
+    },
+    {
+      "vid": 20,
+      "name": "Engineering_Data",
+      "action": "EXISTS",
+      "netbox_vlan_id": 3
+    },
+    {
+      "vid": 30,
+      "name": "Guest_Data",
+      "action": "EXISTS",
+      "netbox_vlan_id": 4
+    },
+    {
+      "vid": 40,
+      "name": "Voice_VoIP",
+      "action": "EXISTS",
+      "netbox_vlan_id": 5
+    },
+    {
+      "vid": 50,
+      "name": "Printers",
+      "action": "EXISTS",
+      "netbox_vlan_id": 6
+    },
+    {
+      "vid": 60,
+      "name": "Local_Servers",
+      "action": "EXISTS",
+      "netbox_vlan_id": 7
+    },
+    {
+      "vid": 99,
+      "name": "Native_VLAN",
+      "action": "CREATE_PENDING",
+      "netbox_vlan_id": "<PENDING_ID_FOR_VID_99>"
+    },
+    {
+      "vid": 100,
+      "name": "Management_Inband",
+      "action": "EXISTS",
+      "netbox_vlan_id": 1
+    }
+  ],
+  "dcim_interfaces_patch_plan": [
+    {
+      "target_interface_name": "FastEthernet0",
+      "netbox_interface_id": 326,
+      "endpoint": "dcim/interfaces/326/",
+      "proposed_patch_payload": {
+        "description": "",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/1",
+      "netbox_interface_id": 327,
+      "endpoint": "dcim/interfaces/327/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 10 (Finance)",
+        "mode": "access",
+        "custom_fields": {
+          "port_security": {
+            "enabled": true,
+            "max_mac_addresses": 2,
+            "violation": "restrict",
+            "aging_time": 10,
+            "aging_type": "inactivity"
+          }
+        }
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/10",
+      "netbox_interface_id": 336,
+      "endpoint": "dcim/interfaces/336/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 60 (Servers)",
+        "mode": "access",
+        "untagged_vlan": 7
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/11",
+      "netbox_interface_id": 337,
+      "endpoint": "dcim/interfaces/337/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/12",
+      "netbox_interface_id": 338,
+      "endpoint": "dcim/interfaces/338/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/13",
+      "netbox_interface_id": 339,
+      "endpoint": "dcim/interfaces/339/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/14",
+      "netbox_interface_id": 340,
+      "endpoint": "dcim/interfaces/340/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/15",
+      "netbox_interface_id": 341,
+      "endpoint": "dcim/interfaces/341/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/16",
+      "netbox_interface_id": 342,
+      "endpoint": "dcim/interfaces/342/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/17",
+      "netbox_interface_id": 343,
+      "endpoint": "dcim/interfaces/343/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/18",
+      "netbox_interface_id": 344,
+      "endpoint": "dcim/interfaces/344/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/19",
+      "netbox_interface_id": 345,
+      "endpoint": "dcim/interfaces/345/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/2",
+      "netbox_interface_id": 328,
+      "endpoint": "dcim/interfaces/328/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 10 (Finance)",
+        "mode": "access",
+        "untagged_vlan": 2,
+        "custom_fields": {
+          "port_security": {
+            "enabled": true,
+            "max_mac_addresses": 1,
+            "violation": "shutdown",
+            "aging_time": 0,
+            "aging_type": "absolute"
+          }
+        }
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/20",
+      "netbox_interface_id": 346,
+      "endpoint": "dcim/interfaces/346/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/21",
+      "netbox_interface_id": 347,
+      "endpoint": "dcim/interfaces/347/",
+      "proposed_patch_payload": {
+        "description": "Trunk Uplink to sw-dist-01",
+        "mode": "tagged",
+        "untagged_vlan": 3
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/22",
+      "netbox_interface_id": 348,
+      "endpoint": "dcim/interfaces/348/",
+      "proposed_patch_payload": {
+        "description": "Trunk Uplink to sw-dist-02",
+        "mode": "tagged",
+        "untagged_vlan": 3
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/23",
+      "netbox_interface_id": 349,
+      "endpoint": "dcim/interfaces/349/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/24",
+      "netbox_interface_id": 350,
+      "endpoint": "dcim/interfaces/350/",
+      "proposed_patch_payload": {
+        "description": "Unused Access Port",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/3",
+      "netbox_interface_id": 329,
+      "endpoint": "dcim/interfaces/329/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 20 (Engineering)",
+        "mode": "access",
+        "untagged_vlan": 3
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/4",
+      "netbox_interface_id": 330,
+      "endpoint": "dcim/interfaces/330/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 20 (Engineering)",
+        "mode": "access",
+        "untagged_vlan": 3
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/5",
+      "netbox_interface_id": 331,
+      "endpoint": "dcim/interfaces/331/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 30 (Guest)",
+        "mode": "access",
+        "untagged_vlan": 4,
+        "custom_fields": {
+          "port_security": {
+            "enabled": true,
+            "max_mac_addresses": 2,
+            "violation": "restrict",
+            "aging_time": 10,
+            "aging_type": "inactivity"
+          }
+        }
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/6",
+      "netbox_interface_id": 332,
+      "endpoint": "dcim/interfaces/332/",
+      "proposed_patch_payload": {
+        "description": "Access Port - VLAN 30 (Guest)",
+        "mode": "access",
+        "untagged_vlan": 4
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/7",
+      "netbox_interface_id": 333,
+      "endpoint": "dcim/interfaces/333/",
+      "proposed_patch_payload": {
+        "description": "IP Phone Port - VLAN 40 (Voice)",
+        "mode": "access",
+        "untagged_vlan": 5
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/8",
+      "netbox_interface_id": 334,
+      "endpoint": "dcim/interfaces/334/",
+      "proposed_patch_payload": {
+        "description": "IP Phone Port - VLAN 40 (Voice)",
+        "mode": "access",
+        "untagged_vlan": 5
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/0/9",
+      "netbox_interface_id": 335,
+      "endpoint": "dcim/interfaces/335/",
+      "proposed_patch_payload": {
+        "description": "Printer Port - VLAN 50 (Printers)",
+        "mode": "access",
+        "untagged_vlan": 6
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/1/1",
+      "netbox_interface_id": 351,
+      "endpoint": "dcim/interfaces/351/",
+      "proposed_patch_payload": {
+        "description": "Unused SFP Uplink",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/1/2",
+      "netbox_interface_id": 352,
+      "endpoint": "dcim/interfaces/352/",
+      "proposed_patch_payload": {
+        "description": "Unused SFP Uplink",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/1/3",
+      "netbox_interface_id": 353,
+      "endpoint": "dcim/interfaces/353/",
+      "proposed_patch_payload": {
+        "description": "Unused SFP Uplink",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "GigabitEthernet1/1/4",
+      "netbox_interface_id": 354,
+      "endpoint": "dcim/interfaces/354/",
+      "proposed_patch_payload": {
+        "description": "Unused SFP Uplink",
+        "mode": "access"
+      }
+    },
+    {
+      "target_interface_name": "TenGigabitEthernet1/1/1",
+      "netbox_interface_id": 355,
+      "endpoint": "dcim/interfaces/355/",
+      "proposed_patch_payload": {
+        "description": "10G SFP+ Uplink 1",
+        "mode": "tagged",
+        "untagged_vlan": 3
+      }
+    },
+    {
+      "target_interface_name": "TenGigabitEthernet1/1/2",
+      "netbox_interface_id": 356,
+      "endpoint": "dcim/interfaces/356/",
+      "proposed_patch_payload": {
+        "description": "10G SFP+ Uplink 2",
+        "mode": "tagged",
+        "untagged_vlan": 3
+      }
+    }
+  ],
+  "device_local_context_patch_plan": {
+    "device_name": "sw-access-07",
+    "netbox_device_id": 12,
+    "endpoint": "dcim/devices/12/",
+    "proposed_patch_payload": {
+      "local_context_data": {
+        "vlans": [
+          {
+            "vid": 10,
+            "name": "Finance_Data",
+            "description": "Finance_Data Segment"
+          },
+          {
+            "vid": 20,
+            "name": "Engineering_Data",
+            "description": "Engineering_Data Segment"
+          },
+          {
+            "vid": 30,
+            "name": "Guest_Data",
+            "description": "Guest_Data Segment"
+          },
+          {
+            "vid": 40,
+            "name": "Voice_VoIP",
+            "description": "Voice_VoIP Segment"
+          },
+          {
+            "vid": 50,
+            "name": "Printers",
+            "description": "Printers Segment"
+          },
+          {
+            "vid": 60,
+            "name": "Local_Servers",
+            "description": "Local_Servers Segment"
+          },
+          {
+            "vid": 99,
+            "name": "Native_VLAN",
+            "description": "Native_VLAN Segment"
+          },
+          {
+            "vid": 100,
+            "name": "Management_Inband",
+            "description": "Management_Inband Segment"
+          }
+        ],
+        "dhcp_snooping": {
+          "enabled": true,
+          "information_option": false,
+          "trusted_interfaces": []
+        },
+        "etherchannel": {
+          "interfaces": {}
+        }
+      }
+    }
+  }
+}

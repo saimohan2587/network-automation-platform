@@ -1,0 +1,9 @@
+prefix,status,description
+192.168.10.0/24,active,Finance VLAN Prefix
+192.168.20.0/24,active,Engineering VLAN Prefix
+192.168.30.0/24,active,Guest VLAN Prefix
+192.168.40.0/24,active,Voice VLAN Prefix
+192.168.50.0/24,active,Printer VLAN Prefix
+192.168.60.0/24,active,Server VLAN Prefix
+192.168.1.0/24,active,Management Prefix
+10.10.0.0/16,active,Infrastructure Transit Prefixes

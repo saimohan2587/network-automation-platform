@@ -1,0 +1,10 @@
+{
+  "execution_time": "2026-08-08 10:53:13",
+  "device_count": 1,
+  "checked_devices": 1,
+  "compliant_devices": 1,
+  "drifted_devices": 0,
+  "ssh_failed_devices": 0,
+  "total_drifts": 0,
+  "drift_summary": {}
+}

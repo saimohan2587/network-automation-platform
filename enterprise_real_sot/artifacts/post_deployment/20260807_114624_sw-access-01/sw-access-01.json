@@ -1,0 +1,497 @@
+{
+  "device_name": "sw-access-01",
+  "ip_address": "192.168.1.20",
+  "overall_status": "DRIFT",
+  "error_message": null,
+  "total_drifts": 61,
+  "drifts": [
+    {
+      "protocol": "cdp",
+      "scope": "global",
+      "field_name": "enabled",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "dns",
+      "scope": "global",
+      "field_name": "domain_lookup",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/1",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 10 (Finance)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/10",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 60 (Servers)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/2",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 10 (Finance)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/21",
+      "field_name": "description",
+      "expected": "Trunk Uplink to sw-dist-01",
+      "actual": "Trunk Uplink to sw",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/22",
+      "field_name": "description",
+      "expected": "Trunk Uplink to sw-dist-02",
+      "actual": "Trunk Uplink to sw",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/3",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 20 (Engineering)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/4",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 20 (Engineering)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/5",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 30 (Guest)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/6",
+      "field_name": "description",
+      "expected": "Access Port - VLAN 30 (Guest)",
+      "actual": "Access Port - VLAN",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/7",
+      "field_name": "description",
+      "expected": "IP Phone Port - VLAN 40 (Voice)",
+      "actual": "IP Phone Port - VL",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/8",
+      "field_name": "description",
+      "expected": "IP Phone Port - VLAN 40 (Voice)",
+      "actual": "IP Phone Port - VL",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "GigabitEthernet3/0/9",
+      "field_name": "description",
+      "expected": "Printer Port - VLAN 50 (Printers)",
+      "actual": "Printer Port - VLA",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "Port-channel1",
+      "field_name": "description",
+      "expected": "Uplink EtherChannel Bundle",
+      "actual": "Uplink EtherChanne",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "TenGigabitEthernet3/1/1",
+      "field_name": "enabled",
+      "expected": true,
+      "actual": "N/A (Interface Missing on Switch)",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "TenGigabitEthernet3/1/1",
+      "field_name": "description",
+      "expected": "10G SFP+ Uplink 1",
+      "actual": "N/A",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "TenGigabitEthernet3/1/2",
+      "field_name": "enabled",
+      "expected": true,
+      "actual": "N/A (Interface Missing on Switch)",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "interface_base",
+      "scope": "TenGigabitEthernet3/1/2",
+      "field_name": "description",
+      "expected": "10G SFP+ Uplink 2",
+      "actual": "N/A",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "ipv6",
+      "scope": "global",
+      "field_name": "unicast_routing",
+      "expected": false,
+      "actual": true,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "port_security",
+      "scope": "GigabitEthernet3/0/1",
+      "field_name": "enabled",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "port_security",
+      "scope": "GigabitEthernet3/0/2",
+      "field_name": "enabled",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "port_security",
+      "scope": "GigabitEthernet3/0/5",
+      "field_name": "enabled",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "stp",
+      "scope": "global",
+      "field_name": "portfast_default",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "syslog",
+      "scope": "global",
+      "field_name": "trap",
+      "expected": "informational",
+      "actual": "informational, 37 message lines logged",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/1",
+      "field_name": "access_vlan",
+      "expected": 10,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/1",
+      "field_name": "native_vlan",
+      "expected": 10,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/10",
+      "field_name": "access_vlan",
+      "expected": 60,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/10",
+      "field_name": "native_vlan",
+      "expected": 60,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/2",
+      "field_name": "access_vlan",
+      "expected": 10,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/2",
+      "field_name": "native_vlan",
+      "expected": 10,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/21",
+      "field_name": "mode",
+      "expected": "trunk",
+      "actual": "access",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/21",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/21",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/22",
+      "field_name": "mode",
+      "expected": "trunk",
+      "actual": "access",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/22",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/22",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/3",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/3",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/4",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/4",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/5",
+      "field_name": "access_vlan",
+      "expected": 30,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/5",
+      "field_name": "native_vlan",
+      "expected": 30,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/6",
+      "field_name": "access_vlan",
+      "expected": 30,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/6",
+      "field_name": "native_vlan",
+      "expected": 30,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/7",
+      "field_name": "access_vlan",
+      "expected": 40,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/7",
+      "field_name": "native_vlan",
+      "expected": 40,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/8",
+      "field_name": "access_vlan",
+      "expected": 40,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/8",
+      "field_name": "native_vlan",
+      "expected": 40,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/9",
+      "field_name": "access_vlan",
+      "expected": 50,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "GigabitEthernet3/0/9",
+      "field_name": "native_vlan",
+      "expected": 50,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "Port-channel1",
+      "field_name": "mode",
+      "expected": "trunk",
+      "actual": "access",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "Port-channel1",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "Port-channel1",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 0,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "TenGigabitEthernet3/1/1",
+      "field_name": "mode",
+      "expected": "trunk",
+      "actual": "access",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "TenGigabitEthernet3/1/1",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "TenGigabitEthernet3/1/1",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "TenGigabitEthernet3/1/2",
+      "field_name": "mode",
+      "expected": "trunk",
+      "actual": "access",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "TenGigabitEthernet3/1/2",
+      "field_name": "access_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vlan",
+      "scope": "TenGigabitEthernet3/1/2",
+      "field_name": "native_vlan",
+      "expected": 20,
+      "actual": 1,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "vtp",
+      "scope": "global",
+      "field_name": "domain",
+      "expected": "",
+      "actual": "CCNA",
+      "reason": "Value mismatch"
+    }
+  ]
+}

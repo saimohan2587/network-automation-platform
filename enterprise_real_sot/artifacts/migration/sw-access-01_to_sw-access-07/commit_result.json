@@ -1,0 +1,8 @@
+{
+  "status": "COMMITTED_SUCCESSFULLY",
+  "target_device": "sw-access-07",
+  "netbox_device_id": 12,
+  "device_local_context_updated": true,
+  "interfaces_patched_count": 31,
+  "backup_snapshot_file": "/home/saimohan/vscode/nac/sot/enterprise_real_sot/artifacts/migration/sw-access-01_to_sw-access-07/pre_population_netbox_backup.json"
+}

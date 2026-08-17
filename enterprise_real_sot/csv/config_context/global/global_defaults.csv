@@ -1,0 +1,10 @@
+key,value
+dns,"{""domain_lookup"": true, ""domain_name"": ""enterprise.corp"", ""servers"": [""10.10.100.2""]}"
+ntp,"{""servers"": [{""address"": ""10.10.100.1"", ""prefer"": true}, {""address"": ""10.10.100.2"", ""prefer"": false}]}"
+aaa,"{""new_model"": true, ""authentication"": {""login"": {""default"": [""group"", ""tacacs+"", ""local""]}}, ""authorization"": {""exec"": {""default"": [""group"", ""tacacs+"", ""local""]}}, ""tacacs_servers"": [{""address"": ""10.10.100.3"", ""key"": ""TacacsSecretSharedKey""}]}"
+syslog,"{""servers"": [{""address"": ""10.10.100.2"", ""severity"": ""informational""}], ""trap"": ""informational"", ""logging_buffered"": 8192, ""facility"": ""local7""}"
+snmp,"{""communities"": {""enterprise_readonly"": {""access"": ""ro"", ""acl"": ""10""}}, ""contact"": ""NetOps Team <netops@enterprise.corp>"", ""traps"": {""servers"": [""10.10.100.2""], ""enabled_traps"": [""linkdown"", ""linkup"", ""coldstart"", ""warmstart""]}}"
+stp,"{""mode"": ""rapid-pvst"", ""bridge_priority"": 32768, ""portfast_default"": true, ""bpduguard_default"": true, ""loopguard_default"": false}"
+vtp,"{""mode"": ""off""}"
+lldp,"{""enabled"": true}"
+cdp,"{""enabled"": true}"

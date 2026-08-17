@@ -1,0 +1,20 @@
+{
+  "batch_name": "hyderabad_access_switch_refresh",
+  "description": "Migration of legacy Cisco 3750 Stack access switches to 3750X standalone units in Hyderabad Site",
+  "manifest_file": "config/migration/hyderabad_access_switches.yaml",
+  "mode": "FULL",
+  "executed_at": "2026-08-10T15:39:57.250252",
+  "total_pairs": 1,
+  "successful_pairs": 1,
+  "failed_pairs": 0,
+  "pairs": [
+    {
+      "source_device": "sw-access-01",
+      "target_device": "sw-access-07",
+      "status": "SUCCESS",
+      "mapped_interfaces_count": 37,
+      "unmapped_interfaces_count": 4,
+      "artifact_directory": "/home/saimohan/vscode/nac/sot/enterprise_real_sot/artifacts/migration/sw-access-01_to_sw-access-07"
+    }
+  ]
+}

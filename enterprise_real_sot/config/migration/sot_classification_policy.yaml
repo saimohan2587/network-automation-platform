@@ -1,0 +1,43 @@
+# Enterprise SOT Classification Policy for Device Migration
+version: "1.0"
+description: "Declarative classification rules routing discovered switch state to NetBox SOT scopes"
+
+scope_mappings:
+  global_context_protocols:
+    - aaa
+    - snmp
+    - syslog
+    - ntp
+    - dns
+    - stp
+    - vtp
+
+  device_local_context:
+    - name: "vlans"
+      source_key: "vlans"
+    - name: "dhcp_snooping"
+      source_key: "dhcp_snooping"
+      map_trusted_interfaces: true
+    - name: "ipv6_routing"
+      source_key: "ipv6"
+    - name: "etherchannel"
+      source_key: "etherchannel"
+
+  dcim_interface_attributes:
+    - description
+    - mode
+    - untagged_vlan
+    - tagged_vlans
+
+  dcim_custom_fields:
+    - port_security
+
+exclusion_rules:
+  protected_interfaces:
+    - "Vlan1"
+    - "Console0"
+  protected_attributes:
+    - "management_ip"
+    - "credentials"
+    - "hostname"
+    - "snmp_location"
