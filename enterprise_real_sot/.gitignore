@@ -1,15 +1,51 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
+# Environment & Secrets (NEVER commit real credentials)
 .env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# Virtual Environments
 .venv/
 venv/
 ENV/
 env/
+venv-*/
+env-*/
 
-*.log
-*.sqlite3
-
-.DS_Store
+# IDEs and Editors (Developer workstation isolation)
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test & Coverage Caches
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+*.pyo
+
+# Temporary Execution Files & Scratch Space Only
+*.log
+*.tmp
+*.bak
+scratch/
