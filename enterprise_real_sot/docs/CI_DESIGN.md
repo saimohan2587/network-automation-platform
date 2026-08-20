@@ -96,6 +96,9 @@ Exit 0   Exit 1 (Blocks Merge)
 ### Pull Request Quality Gate
 All Pull Requests merged into `main` must pass the GitHub Actions `ci-validation` workflow automatically. If any layer fails, GitHub blocks the merge until the developer resolves the error and pushes a clean commit.
 
+### Repository Root & Directory Context Note
+The GitHub Actions runner executes from the Git repository root (`network-automation-platform/`), while application code, CSV SoT files, and test scripts reside within the `enterprise_real_sot/` subdirectory. To ensure `tests/ci_runner.py` correctly locates project files and internal Python packages (`csv/`, `config/`, `python/`), the workflow specifies `defaults.run.working-directory: enterprise_real_sot`.
+
 ---
 
 ## 5. Verification & Safety Guarantees

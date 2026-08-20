@@ -13,6 +13,10 @@ jobs:
     name: Static Code & Data Integrity Validation
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: enterprise_real_sot
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
