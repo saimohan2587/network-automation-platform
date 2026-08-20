@@ -332,12 +332,20 @@ def get_git_intent_data():
                         with open(filepath, 'r', encoding='utf-8') as f:
                             reader = csv.DictReader(f)
                             for row in reader:
-                                k = row['key']
-                                v = row['value']
-                                try:
-                                    device_data[k] = json.loads(v)
-                                except Exception:
-                                    device_data[k] = v
+                                if 'key' in row and 'value' in row and row['key']:
+                                    k = row['key']
+                                    v = row['value']
+                                    try:
+                                        device_data[k] = json.loads(v)
+                                    except Exception:
+                                        device_data[k] = v
+                                elif 'data' in row and row.get('data'):
+                                    try:
+                                        parsed = json.loads(row['data'])
+                                        if isinstance(parsed, dict):
+                                            device_data.update(parsed)
+                                    except Exception:
+                                        pass
                         intent_data[device_name] = {"device": device_data}
     except Exception as e:
         logger.error(f"Failed to load CSV config contexts recursively: {e}")
@@ -535,7 +543,7 @@ def import_interfaces():
             "type": row.get('type', '1000base-t').lower(),
             "enabled": row.get('enabled', 'true').lower() == 'true',
             "mgmt_only": row.get('mgmt_only', 'false').lower() == 'true',
-            "description": git_intf.get("description", row.get('description', ''))
+            "description": git_intf.get("description") or row.get('description') or ""
         }
         if mode_val:
             data["mode"] = mode_val

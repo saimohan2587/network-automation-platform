@@ -175,3 +175,67 @@ class MigrationParserEngine:
             "etherchannel": eth_actual,
             "vlans": vlans_list
         }
+
+    @staticmethod
+    def parse_discovered_interfaces(raw_outputs: Dict[str, str]) -> List[Dict[str, Any]]:
+        """
+        Dynamically parse interface inventory from live CLI outputs:
+        'show ip interface brief' and 'show interfaces'.
+        """
+        interfaces_map: Dict[str, Dict[str, Any]] = {}
+        ip_brief_text = raw_outputs.get("show ip interface brief", "")
+
+        for line in ip_brief_text.splitlines():
+            line_str = line.strip()
+            if not line_str or line_str.startswith("Interface") or line_str.startswith("-"):
+                continue
+
+            match = re.match(
+                r"^(\S+)\s+(\S+)\s+(?:YES|NO)\s+\S+\s+(up|down|administratively down)\s+(up|down)",
+                line_str,
+                re.IGNORECASE
+            )
+            if match:
+                name, ip_addr, status, protocol = match.groups()
+                interfaces_map[name] = {
+                    "name": name,
+                    "ip_address": ip_addr if ip_addr.lower() != "unassigned" else None,
+                    "admin_status": status.lower(),
+                    "protocol_status": protocol.lower(),
+                    "description": "",
+                    "hardware_type": "other",
+                    "enabled": status.lower() != "administratively down"
+                }
+
+        raw_interfaces_text = raw_outputs.get("show interfaces", "")
+        current_intf = None
+
+        for line in raw_interfaces_text.splitlines():
+            intf_header = re.match(r"^(\S+) is (up|down|administratively down),\s+line protocol is (up|down)", line, re.IGNORECASE)
+            if intf_header:
+                current_intf = intf_header.group(1)
+                if current_intf not in interfaces_map:
+                    interfaces_map[current_intf] = {
+                        "name": current_intf,
+                        "ip_address": None,
+                        "admin_status": intf_header.group(2).lower(),
+                        "protocol_status": intf_header.group(3).lower(),
+                        "description": "",
+                        "hardware_type": "other",
+                        "enabled": intf_header.group(2).lower() != "administratively down"
+                    }
+                continue
+
+            if current_intf and "Description:" in line:
+                desc = line.split("Description:", 1)[1].strip()
+                interfaces_map[current_intf]["description"] = desc
+
+            if current_intf and "Hardware is" in line:
+                hw = line.split("Hardware is", 1)[1].split(",")[0].strip()
+                interfaces_map[current_intf]["hardware_type"] = hw
+
+            if current_intf and "Internet address is" in line:
+                ip_cidr = line.split("Internet address is", 1)[1].strip().split()[0]
+                interfaces_map[current_intf]["ip_address"] = ip_cidr
+
+        return list(interfaces_map.values())

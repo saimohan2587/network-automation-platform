@@ -139,7 +139,10 @@ session.headers.update({
 #    Like an address formatter that adds zip codes and country names so mail isn't misrouted.
 ############################################################
 def get_netbox_url(endpoint):
-    return f"{settings.NETBOX_URL.rstrip('/')}/api/{endpoint.lstrip('/')}"
+    base = settings.NETBOX_URL.rstrip('/')
+    if base.endswith('/api'):
+        base = base[:-4]
+    return f"{base}/api/{endpoint.lstrip('/')}"
 
 ############################################################
 # HTTP CRUD HELPER FUNCTIONS: api_get, api_post, api_patch

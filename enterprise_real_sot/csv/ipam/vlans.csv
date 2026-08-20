@@ -6,3 +6,8 @@ vid,name,status,description
 50,Printers,active,Printer Network VLAN
 60,Servers,active,Server Farm VLAN
 100,MGMT,active,Management VLAN
+
+10,USERS_SW1,gns3-staging,active,SW1 user VLAN
+20,SERVERS_SW1,gns3-staging,active,SW1 server VLAN
+30,USERS_SW2,gns3-staging,active,SW2 user VLAN
+40,IOT_SW2,gns3-staging,active,SW2 IoT VLAN

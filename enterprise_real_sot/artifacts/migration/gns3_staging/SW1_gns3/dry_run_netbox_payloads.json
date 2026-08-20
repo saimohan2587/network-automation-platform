@@ -1,0 +1,28 @@
+{
+  "device": {
+    "name": "SW1_gns3",
+    "status": "active"
+  },
+  "interfaces_to_create": [
+    "GigabitEthernet0/0",
+    "GigabitEthernet0/1",
+    "GigabitEthernet0/2",
+    "GigabitEthernet0/3",
+    "GigabitEthernet1/0",
+    "GigabitEthernet1/1",
+    "GigabitEthernet1/2",
+    "GigabitEthernet1/3",
+    "GigabitEthernet2/0",
+    "GigabitEthernet2/1",
+    "GigabitEthernet2/2",
+    "GigabitEthernet2/3",
+    "GigabitEthernet3/0",
+    "GigabitEthernet3/1",
+    "GigabitEthernet3/2",
+    "GigabitEthernet3/3",
+    "Vlan1"
+  ],
+  "ips_to_assign": [
+    "10.10.20.2/24"
+  ]
+}

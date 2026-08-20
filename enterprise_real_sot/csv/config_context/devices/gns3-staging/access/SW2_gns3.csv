@@ -1,0 +1,2 @@
+name,device,data,description
+SW2_gns3,SW2_gns3,"{""device_role"":""access-switch-lan-b"",""vlan_intent"":[30,40],""port_security_policy"":{""enabled"":true,""sticky"":true,""violation"":""restrict""}}",Device-specific SW2 intent

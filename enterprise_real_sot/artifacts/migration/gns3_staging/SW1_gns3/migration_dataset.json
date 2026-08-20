@@ -1,0 +1,191 @@
+{
+  "interfaces": [
+    {
+      "name": "GigabitEthernet0/0",
+      "ip_address": null,
+      "admin_status": "up",
+      "protocol_status": "up",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet0/1",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet0/2",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet0/3",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet1/0",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet1/1",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet1/2",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet1/3",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet2/0",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet2/1",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet2/2",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet2/3",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet3/0",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet3/1",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet3/2",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet3/3",
+      "ip_address": null,
+      "admin_status": "down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "iGbE",
+      "enabled": true
+    },
+    {
+      "name": "Vlan1",
+      "ip_address": "10.10.20.2/24",
+      "admin_status": "up",
+      "protocol_status": "up",
+      "description": "",
+      "hardware_type": "Ethernet SVI",
+      "enabled": true
+    }
+  ],
+  "protocols": {
+    "dns": {
+      "domain_name": "",
+      "domain_lookup": false
+    },
+    "ntp": {
+      "servers": [],
+      "source_interface": ""
+    },
+    "syslog": {
+      "facility": "",
+      "trap": ""
+    },
+    "snmp": {
+      "location": "",
+      "contact": ""
+    },
+    "stp": {
+      "mode": "unknown",
+      "bpduguard_default": false,
+      "portfast_default": false
+    },
+    "vtp": {
+      "mode": "unknown"
+    },
+    "dhcp_snooping": {
+      "enabled": false,
+      "information_option": false
+    },
+    "etherchannel": {
+      "interfaces": {}
+    },
+    "vlans": []
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "interfaces": [
+    {
+      "name": "FastEthernet0/0",
+      "ip_address": "10.10.10.2/24",
+      "admin_status": "up",
+      "protocol_status": "up",
+      "description": "",
+      "hardware_type": "DEC21140",
+      "enabled": true
+    },
+    {
+      "name": "FastEthernet1/0",
+      "ip_address": null,
+      "admin_status": "administratively down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "DEC21140",
+      "enabled": false
+    },
+    {
+      "name": "GigabitEthernet2/0",
+      "ip_address": "10.10.20.1/24",
+      "admin_status": "up",
+      "protocol_status": "up",
+      "description": "",
+      "hardware_type": "82543",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet3/0",
+      "ip_address": "10.10.30.1/24",
+      "admin_status": "up",
+      "protocol_status": "up",
+      "description": "",
+      "hardware_type": "82543",
+      "enabled": true
+    },
+    {
+      "name": "GigabitEthernet4/0",
+      "ip_address": null,
+      "admin_status": "administratively down",
+      "protocol_status": "down",
+      "description": "",
+      "hardware_type": "82543",
+      "enabled": false
+    }
+  ],
+  "protocols": {
+    "dns": {
+      "domain_name": "",
+      "domain_lookup": false
+    },
+    "ntp": {
+      "servers": [],
+      "source_interface": ""
+    },
+    "syslog": {
+      "facility": "",
+      "trap": ""
+    },
+    "snmp": {
+      "location": "",
+      "contact": ""
+    },
+    "stp": {
+      "mode": "unknown",
+      "bpduguard_default": false,
+      "portfast_default": false
+    },
+    "vtp": {
+      "mode": "unknown"
+    },
+    "dhcp_snooping": {
+      "enabled": false,
+      "information_option": false
+    },
+    "etherchannel": {
+      "interfaces": {}
+    },
+    "vlans": []
+  }
+}

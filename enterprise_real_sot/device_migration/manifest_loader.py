@@ -64,9 +64,21 @@ class ManifestLoader:
         metadata = raw_data.get("metadata", {})
         default_rules = raw_data.get("default_rules", {})
         pairs_raw = raw_data.get("migration_pairs", [])
+        staging_raw = raw_data.get("staging_devices", [])
+
+        if not pairs_raw and staging_raw:
+            pairs_raw = [
+                {
+                    "source_device": item.get("name"),
+                    "target_device": item.get("name"),
+                    "site": item.get("site", ""),
+                    "enabled": item.get("enabled", True)
+                }
+                for item in staging_raw
+            ]
 
         if not pairs_raw:
-            raise ValueError("Manifest contains no migration pairs.")
+            raise ValueError("Manifest contains no migration or staging devices.")
 
         # Parse regex pattern mappings for interface transformations
         pattern_mappings = []

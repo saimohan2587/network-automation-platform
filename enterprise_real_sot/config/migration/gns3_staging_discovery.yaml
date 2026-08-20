@@ -1,0 +1,18 @@
+metadata:
+  manifest_version: "1.0"
+  batch_name: "gns3_staging_discovery"
+  description: "Live interface inventory discovery for GNS3 Staging Lab devices"
+
+staging_devices:
+  - name: "R1_gns3"
+    ip: "10.10.10.2/24"
+    site: "hyderabad"
+    enabled: true
+  - name: "SW1_gns3"
+    ip: "10.10.20.2/24"
+    site: "hyderabad"
+    enabled: true
+  - name: "SW2_gns3"
+    ip: "10.10.30.2/24"
+    site: "hyderabad"
+    enabled: true

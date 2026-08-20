@@ -7,3 +7,7 @@ prefix,status,description
 192.168.60.0/24,active,Server VLAN Prefix
 192.168.1.0/24,active,Management Prefix
 10.10.0.0/16,active,Infrastructure Transit Prefixes
+
+10.10.10.0/24,active,R1 management network
+10.10.20.0/24,active,SW1 LAN and management network
+10.10.30.0/24,active,SW2 LAN and management network

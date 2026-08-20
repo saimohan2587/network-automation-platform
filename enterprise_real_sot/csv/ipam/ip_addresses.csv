@@ -30,3 +30,8 @@ address,device,interface,status,role
 10.10.1.6/30,sw-dist-02,TenGigabitEthernet1/1/1,active,secondary
 10.10.1.14/30,sw-dist-02,TenGigabitEthernet1/1/2,active,secondary
 192.168.1.2/24,sw-access-07,Vlan1,active,primary
+10.10.10.2/24,R1_gns3,FastEthernet0/0,active,primary
+10.10.20.1/24,R1_gns3,GigabitEthernet2/0,active,secondary
+10.10.30.1/24,R1_gns3,GigabitEthernet3/0,active,secondary
+10.10.20.2/24,SW1_gns3,Vlan1,active,primary
+10.10.30.2/24,SW2_gns3,Vlan1,active,primary

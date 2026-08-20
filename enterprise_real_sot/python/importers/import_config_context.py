@@ -24,12 +24,20 @@ def load_csv_context(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                k = row['key']
-                v = row['value']
-                try:
-                    data[k] = json.loads(v)
-                except Exception:
-                    data[k] = v
+                if 'key' in row and 'value' in row and row['key']:
+                    k = row['key']
+                    v = row['value']
+                    try:
+                        data[k] = json.loads(v)
+                    except Exception:
+                        data[k] = v
+                elif 'data' in row and row.get('data'):
+                    try:
+                        parsed = json.loads(row['data'])
+                        if isinstance(parsed, dict):
+                            data.update(parsed)
+                    except Exception:
+                        pass
     except Exception as e:
         logger.error(f"Failed to parse CSV context from {filepath}: {e}")
     return data
@@ -118,7 +126,36 @@ def run_config_context_import():
                     logger.error(f"Failed to import site config context for '{site_slug}': {e}")
                     stats["failed"] += 1
 
-    # 3. Cleanup obsolete config contexts
+    # 3. Import Device-level Config Contexts
+    devices_dir = os.path.join(context_dir, "devices")
+    if os.path.exists(devices_dir):
+        from common_api import resolve_device
+        for root, dirs, files in os.walk(devices_dir):
+            for file in files:
+                if file.endswith(".csv"):
+                    dev_name = os.path.splitext(file)[0]
+                    dev_id = resolve_device(dev_name)
+                    if dev_id:
+                        filepath = os.path.join(root, file)
+                        dev_data = load_csv_context(filepath)
+                        context_name = f"Device-{dev_name}"
+                        existing = api_get("extras/config-contexts/", {"name": context_name})
+                        data = {
+                            "name": context_name,
+                            "data": dev_data,
+                            "devices": [dev_id],
+                            "description": f"Device-specific config context for {dev_name}"
+                        }
+                        if existing and existing.get("results"):
+                            existing_id = existing["results"][0]["id"]
+                            logger.info(f"Config Context '{context_name}' already exists. Updating (PATCH)...")
+                            api_patch(f"extras/config-contexts/{existing_id}/", data)
+                            stats["skipped"] += 1
+                        else:
+                            logger.info(f"Creating Device Config Context '{context_name}' for device ID {dev_id}...")
+                            api_post("extras/config-contexts/", data)
+
+    # 4. Cleanup obsolete config contexts
     logger.info("Cleaning up obsolete per-protocol config contexts...")
     existing_contexts = api_get("extras/config-contexts/")
     if existing_contexts and existing_contexts.get("results"):

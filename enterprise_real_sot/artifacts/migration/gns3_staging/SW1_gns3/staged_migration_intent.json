@@ -1,0 +1,170 @@
+{
+  "device_name": "SW1_gns3",
+  "management_ip": "10.10.20.2/24",
+  "dcim": {
+    "interfaces": [
+      {
+        "name": "GigabitEthernet0/0",
+        "ip_address": null,
+        "admin_status": "up",
+        "protocol_status": "up",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet0/1",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet0/2",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet0/3",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet1/0",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet1/1",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet1/2",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet1/3",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet2/0",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet2/1",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet2/2",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet2/3",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet3/0",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet3/1",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet3/2",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "GigabitEthernet3/3",
+        "ip_address": null,
+        "admin_status": "down",
+        "protocol_status": "down",
+        "description": "",
+        "hardware_type": "iGbE",
+        "enabled": true
+      },
+      {
+        "name": "Vlan1",
+        "ip_address": "10.10.20.2/24",
+        "admin_status": "up",
+        "protocol_status": "up",
+        "description": "",
+        "hardware_type": "Ethernet SVI",
+        "enabled": true
+      }
+    ],
+    "vlans": []
+  },
+  "ipam": {
+    "ip_addresses": [
+      {
+        "address": "10.10.20.2/24",
+        "interface": "Vlan1"
+      }
+    ]
+  }
+}

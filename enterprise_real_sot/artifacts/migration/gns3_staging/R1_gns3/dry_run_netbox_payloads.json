@@ -1,0 +1,18 @@
+{
+  "device": {
+    "name": "R1_gns3",
+    "status": "active"
+  },
+  "interfaces_to_create": [
+    "FastEthernet0/0",
+    "FastEthernet1/0",
+    "GigabitEthernet2/0",
+    "GigabitEthernet3/0",
+    "GigabitEthernet4/0"
+  ],
+  "ips_to_assign": [
+    "10.10.10.2/24",
+    "10.10.20.1/24",
+    "10.10.30.1/24"
+  ]
+}

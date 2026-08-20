@@ -120,6 +120,19 @@ class NetBoxClient:
 
         return all_results
 
+    def post(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Executes a HTTP POST request against a NetBox REST API endpoint.
+        """
+        url = self._build_url(endpoint)
+        try:
+            response = self.session.post(url, json=data, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"HTTP POST failed for '{url}': {e}")
+            raise NetBoxAPIError(f"POST {url} failed: {e}") from e
+
     def patch(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Executes a HTTP PATCH request against a NetBox REST API endpoint.

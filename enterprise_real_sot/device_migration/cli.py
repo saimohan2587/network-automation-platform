@@ -90,6 +90,19 @@ def main():
     args = parser.parse_args()
 
     try:
+        if "staging" in args.manifest or "gns3" in args.manifest:
+            from device_migration.discovery_engine import StagingDiscoveryEngine
+            logger.info("Detected staging discovery manifest '%s'. Invoking StagingDiscoveryEngine...", args.manifest)
+            engine = StagingDiscoveryEngine(
+                manifest_path=args.manifest,
+                discovery_only=args.discovery_only,
+                dry_run=args.dry_run,
+                commit=args.commit
+            )
+            results = engine.run_discovery()
+            logger.info("Staging discovery complete. Results: %s", results)
+            sys.exit(0)
+
         # ManifestLoader.load(): Loads and validates the YAML/JSON manifest file.
         # Why used: Converts raw YAML file into structured MigrationManifest dataclass object.
         manifest = ManifestLoader.load(args.manifest)

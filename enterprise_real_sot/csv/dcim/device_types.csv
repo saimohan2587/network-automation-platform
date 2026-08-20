@@ -1,2 +1,4 @@
 manufacturer,model,slug,u_height,is_full_depth
 cisco,WS-C3750X-24P,ws-c3750x-24p,1,true
+cisco,Cisco 7206VXR,cisco-7206vxr,3,true
+cisco,Cisco IOSv L2,cisco-iosv-l2,1,true
