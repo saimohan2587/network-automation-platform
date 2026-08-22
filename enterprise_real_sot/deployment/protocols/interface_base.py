@@ -25,6 +25,12 @@ class InterfaceBaseProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "interface_base"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "BASE_INTERFACE"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains interface definitions."""
         interfaces = self._get_interfaces(device_context)
@@ -154,4 +160,4 @@ class InterfaceBaseProtocol(BaseProtocol):
         if not commands:
             return ""
 
-        return "\n".join([f"interface {interface_name}", *commands])
+        return "\n".join([f"interface {interface_name}", *commands, "exit"])

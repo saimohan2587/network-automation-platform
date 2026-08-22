@@ -49,8 +49,9 @@ class StpResource(BaseResource):
         stp_data = config.get("stp", {}) if isinstance(config, Mapping) else {}
 
         mode = str(stp_data.get("mode", "rapid-pvst")).lower()
-        bpduguard = bool(stp_data.get("bpduguard_default", True))
-        portfast = bool(stp_data.get("portfast_default", True))
+        bpduguard = bool(stp_data.get("bpduguard_default", False))
+        portfast = bool(stp_data.get("portfast_default", False))
+
 
         return {
             "mode": mode,

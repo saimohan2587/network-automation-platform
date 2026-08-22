@@ -102,8 +102,9 @@ def run_config_context_import():
                     
                     cleaned_data = {
                         k: v for k, v in site_data.items()
-                        if k not in ["site", "locations", "racks", "vlans", "prefixes"]
+                        if k not in ["site", "locations", "racks", "prefixes"]
                     }
+
                     
                     context_name = f"Site-Defaults-{site_slug}"
                     existing = api_get("extras/config-contexts/", {"name": context_name})

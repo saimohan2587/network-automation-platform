@@ -114,11 +114,14 @@ class ContextBuilder:
             site_context = self._fetch_config_context_data(site_context_name)
 
         # Step 3: Extract Device-local context data specific to this single switch.
-        device_local_context = device.get("local_context_data") or {}
+        device_context_name = f"Device-{device_name}"
+        device_config_context = self._fetch_config_context_data(device_context_name)
+        device_local_context = deep_merge(device_config_context, device.get("local_context_data") or {})
 
-        # Step 4: Merge hierarchy in order: Global < Site < Device Local (Device Local overrides Site, which overrides Global).
+        # Step 4: Merge hierarchy in order: Global < Site < Device Context < Device Local.
         merged_config = deep_merge(global_context, site_context)
         merged_config = deep_merge(merged_config, device_local_context)
+
 
         # Step 5: Query and structure all interface metadata and assigned IP addresses for this device.
         interfaces = self._get_device_interfaces_and_ips(device_id)

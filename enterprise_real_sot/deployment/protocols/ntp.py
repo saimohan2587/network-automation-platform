@@ -69,7 +69,16 @@ class NtpProtocol(BaseProtocol):
 
         source_iface = settings.get("source_interface")
         if isinstance(source_iface, str) and source_iface.strip():
-            commands.append(f"ntp source {source_iface.strip()}")
+            source_name = source_iface.strip()
+            interfaces = device_context.get("interfaces", {})
+            if isinstance(interfaces, Mapping) and source_name in interfaces:
+                commands.append(f"ntp source {source_name}")
+            else:
+                logger.warning(
+                    "Skipping NTP source interface '%s': interface does not exist on target device.",
+                    source_name,
+                )
+
 
         if commands:
             logger.info("Generated NTP configuration (%d command(s)).", len(commands))

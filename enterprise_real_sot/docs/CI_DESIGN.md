@@ -166,3 +166,59 @@ Exit 0   Exit 1 (Blocks Merge)
 * **Zero Hardware Requirements**: CI runs entirely within cloud runners without requiring GNS3 lab access or physical network devices.
 * **Zero Credential Requirements**: CI requires no API tokens, secrets, or SSH passwords (`.env` remains untracked and excluded).
 * **Deterministic Parity**: Installing `requirements.txt` ensures local execution (`python3 tests/ci_runner.py`) produces 100% identical validation results to GitHub Actions.
+
+---
+
+## 7. Phase 4.1: Continuous Deployment (CD) Lifecycle & State Standards
+
+Phase 4.1 establishes standardized, enterprise-grade execution states for target network devices throughout the Continuous Deployment pipeline.
+
+### Standardized Device Execution States (`DeviceLifecycleState` in `deployment/lifecycle.py`)
+- `SELECTED`: Device selected from NetBox Source of Truth.
+- `VALIDATED`: Pre-deployment in-memory validation passed (`is_valid == True`).
+- `VALIDATION_FAILED`: Pre-deployment in-memory validation failed (`is_valid == False`).
+- `DRY_RUN`: Dry-run mode simulation completed successfully without SSH transport.
+- `AWAITING_APPROVAL`: Reserved for Phase 4.3 approval gate.
+- `APPROVED`: Reserved for Phase 4.3 approval gate.
+- `DEPLOYING`: Active SSH connection and CLI configuration push in progress over Netmiko.
+- `DEPLOYED`: Configuration pushed and saved successfully on target switch.
+- `DEPLOYMENT_FAILED`: SSH connection, authentication, or Cisco CLI command execution failed.
+- `POST_VALIDATION`: Post-deployment operational compliance evaluation in progress.
+- `COMPLETED`: Post-deployment compliance evaluation passed (`COMPLIANT`).
+- `POST_VALIDATION_FAILED`: Post-deployment compliance evaluation failed or drifted (`DRIFT` / `FAILED`).
+
+### Standardized Batch Lifecycle States (`BatchLifecycleState` in `deployment/lifecycle.py`)
+- `INITIALIZED`: Batch request created.
+- `ASSESSING`: Pre-deployment context building & validation in progress.
+- `ASSESSMENT_COMPLETED`: Pre-deployment assessment finished.
+- `DEPLOYING`: Selective candidate deployment in progress.
+- `COMPLETED`: Batch deployment finished successfully.
+- `PARTIALLY_FAILED`: Batch deployment finished with one or more device failures.
+- `FAILED`: Entire deployment batch failed.
+
+### Standardized Lifecycle Flow Paths
+
+#### 1. Dry-Run Execution Path:
+`SELECTED` ➔ `VALIDATED` ➔ `DRY_RUN`
+
+#### 2. Live SSH Deployment Path (Successful):
+`SELECTED` ➔ `VALIDATED` ➔ `DEPLOYING` ➔ `DEPLOYED`
+
+#### 3. Live SSH Deployment Path (Device Failure):
+`SELECTED` ➔ `VALIDATED` ➔ `DEPLOYING` ➔ `DEPLOYMENT_FAILED`
+
+#### 4. Pre-Deployment Validation Failure Path:
+`SELECTED` ➔ `VALIDATION_FAILED` *(Excluded from deployment; remaining passing devices proceed)*
+
+---
+
+### Phase 4.1 Verification & Test Results
+
+The Phase 4.1 CD Lifecycle implementation was tested and verified across all target operational scenarios:
+
+| Test Scenario | Input Filter / Context | Observed State Flow | Dry-Run Transport Check | Gatekeeper Result | Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1. Valid Device Dry-Run** | `sw-access-01` (Passes all checks) | `SELECTED` ➔ `VALIDATED` ➔ `DRY_RUN` | 0 SSH connections; Netmiko bypassed. `.cfg` artifact saved. | `is_candidate = True` | **PASS** |
+| **2. Invalid Device Gatekeeper** | Invalid NetBox custom field / Empty CLI | `SELECTED` ➔ `VALIDATION_FAILED` | Zero transport attempts. No `.cfg` file created. | `is_candidate = False` (Excluded from Phase 2) | **PASS** |
+| **3. Selective Batch Isolation** | Mixed batch (`sw-access-01` valid, `invalid-01` failed) | Valid: `DRY_RUN`<br>Failed: `VALIDATION_FAILED` | Only valid candidate devices proceed to Phase 2. Failed device skipped. | Isolated per device | **PASS** |
+| **4. CI Pipeline Parity** | `tests/ci_runner.py` | Layers 1–4 Static Execution | 0 syntax, import, CSV, or YAML errors. | Clean Exit Code 0 | **PASS** |

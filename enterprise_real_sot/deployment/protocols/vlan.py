@@ -25,6 +25,12 @@ class VlanProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "vlan"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER2_SWITCHING"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains VLAN configuration."""
         global_vlans = self._get_global_vlans(device_context)
@@ -91,9 +97,12 @@ class VlanProtocol(BaseProtocol):
     def _get_global_vlans(device_context: Mapping[str, Any]) -> Any:
         """Extract global VLAN definitions list from config context."""
         config = device_context.get("config", {})
-        if not isinstance(config, Mapping):
-            return None
-        return config.get("vlans")
+        if isinstance(config, Mapping):
+            vlans = config.get("vlans") or config.get("vlan_intent")
+            if vlans is not None:
+                return vlans
+        return device_context.get("vlans") or device_context.get("vlan_intent")
+
 
     @staticmethod
     def _get_interfaces(device_context: Mapping[str, Any]) -> List[Tuple[str, Mapping[str, Any]]]:
@@ -207,4 +216,4 @@ class VlanProtocol(BaseProtocol):
         if not commands:
             return []
 
-        return [f"interface {interface_name}", *commands]
+        return [f"interface {interface_name}", *commands, "exit"]

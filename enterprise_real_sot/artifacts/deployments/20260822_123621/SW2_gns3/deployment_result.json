@@ -1,0 +1,16 @@
+{
+  "device_name": "SW2_gns3",
+  "ip_address": "10.10.30.2",
+  "connection_status": "connected",
+  "deployment_status": "success",
+  "commands_sent": 57,
+  "execution_time_seconds": 6.009558715999447,
+  "error_message": null,
+  "state": "DEPLOYED",
+  "desired_items_count": 63,
+  "compliant_items_count": 6,
+  "change_required_count": 57,
+  "backup_saved": true,
+  "rollback_status": "NOT_REQUIRED",
+  "verification_status": "PENDING_COMPLIANCE"
+}

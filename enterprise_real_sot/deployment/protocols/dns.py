@@ -21,6 +21,12 @@ class DnsProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "dns"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "GLOBAL_MANAGEMENT"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains DNS configuration."""
         settings = self._get_settings(device_context)
@@ -74,7 +80,8 @@ class DnsProtocol(BaseProtocol):
 
         domain_name = settings.get("domain_name")
         if isinstance(domain_name, str) and domain_name.strip():
-            commands.append(f"ip domain-name {domain_name.strip()}")
+            commands.append(f"ip domain name {domain_name.strip()}")
+
 
         lookup = settings.get("domain_lookup")
         if lookup is True:

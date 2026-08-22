@@ -1,2 +1,4 @@
 name,device,data,description
-SW1_gns3,SW1_gns3,"{""device_role"":""access-switch-lan-a"",""ntp"":{""server"":""10.10.20.1""},""vlan_intent"":[10,20],""port_security_policy"":{""enabled"":true,""sticky"":true,""violation"":""restrict""}}",Device-specific SW1 intent
+SW1_gns3,SW1_gns3,"{""vlans"":[{""vid"":10,""name"":""GNS3_DATA""},{""vid"":20,""name"":""GNS3_VOICE""}],""stp"":{""mode"":""rapid-pvst""}}",Device-specific SW1 intent
+
+

@@ -1,0 +1,16 @@
+{
+  "device_name": "R1_gns3",
+  "ip_address": "10.10.10.2",
+  "connection_status": "connected",
+  "deployment_status": "success",
+  "commands_sent": 22,
+  "execution_time_seconds": 104.69051917399884,
+  "error_message": null,
+  "state": "DEPLOYED",
+  "desired_items_count": 30,
+  "compliant_items_count": 8,
+  "change_required_count": 22,
+  "backup_saved": true,
+  "rollback_status": "NOT_REQUIRED",
+  "verification_status": "PENDING_COMPLIANCE"
+}

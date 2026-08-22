@@ -10,8 +10,10 @@ import pkgutil
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
 
 
+from deployment.capability_resolver import CapabilityResolver
 from deployment.logger import get_logger
 from deployment.protocols.base_protocol import BaseProtocol, ProtocolValidationError
+
 
 
 logger = get_logger("ConfigGenerator")
@@ -165,11 +167,16 @@ class ConfigGenerator:
         configuration_fragments: List[str] = []
 
         for plugin in selected_plugins:
-            # Check if this switch has settings for this protocol (e.g. does it have port security configured?).
-            # If False, skip rendering to avoid generating empty or invalid CLI commands.
+            # 1. CENTRAL CAPABILITY GATE: Check if the device role/platform supports this protocol category.
+            if not CapabilityResolver.is_supported(plugin, device_context):
+                # Skipped & logged by CapabilityResolver
+                continue
+
+            # 2. CONFIG APPLICABILITY GATE: Check if device_context has configuration for this protocol.
             if not plugin.is_applicable(device_context):
                 logger.info("Skipping non-applicable protocol '%s'.", plugin.protocol_name)
                 continue
+
 
             logger.info("Generating configuration for protocol '%s'.", plugin.protocol_name)
             # Verify data validity before generating commands so bad inputs are caught early.

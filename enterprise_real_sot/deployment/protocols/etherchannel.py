@@ -23,6 +23,12 @@ class EtherChannelProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "etherchannel"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER2_SWITCHING"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains EtherChannel configuration."""
         settings = self._get_settings(device_context)
@@ -62,6 +68,7 @@ class EtherChannelProtocol(BaseProtocol):
             mode_str = mode.lower() if mode else "active"
             commands.append(f"interface {interface_name}")
             commands.append(f" channel-group {group_id} mode {mode_str}")
+            commands.append(" exit")
 
         if commands:
             logger.info("Generated EtherChannel configuration (%d command(s)).", len(commands))

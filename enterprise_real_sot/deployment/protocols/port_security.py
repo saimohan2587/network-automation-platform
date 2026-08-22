@@ -27,6 +27,12 @@ class PortSecurityProtocol(BaseProtocol):
         """Return the identifier used by ``ConfigGenerator`` discovery."""
         return "port_security"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER2_SWITCHING"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains Port Security configuration."""
         global_settings = self._global_settings(device_context)
@@ -68,7 +74,8 @@ class PortSecurityProtocol(BaseProtocol):
         configuration = device_context.get("config", {})
         if not isinstance(configuration, Mapping):
             return None
-        return configuration.get("port_security")
+        return configuration.get("port_security") or configuration.get("port_security_policy")
+
 
     @staticmethod
     def _interface_settings(
@@ -236,7 +243,7 @@ class PortSecurityProtocol(BaseProtocol):
             command = "switchport port-security"
             commands.append(command if settings["enabled"] else f"no {command}")
             if not settings["enabled"]:
-                return [f"interface {interface_name}", *commands]
+                return [f"interface {interface_name}", *commands, "exit"]
 
         if "max_mac_addresses" in settings:
             commands.append(
@@ -262,4 +269,5 @@ class PortSecurityProtocol(BaseProtocol):
         for secure_address in secure_addresses:
             commands.append(f"switchport port-security mac-address {secure_address}")
 
-        return [f"interface {interface_name}", *commands] if commands else []
+        return [f"interface {interface_name}", *commands, "exit"] if commands else []
+

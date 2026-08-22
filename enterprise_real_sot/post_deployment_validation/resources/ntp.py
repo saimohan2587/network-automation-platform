@@ -59,11 +59,15 @@ class NtpResource(BaseResource):
                         servers.append(addr.strip())
 
         source_iface = str(ntp_data.get("source_interface", "")).strip()
+        interfaces = device_context.get("interfaces", {})
+        if source_iface and isinstance(interfaces, Mapping) and source_iface not in interfaces:
+            source_iface = ""
 
         return {
             "servers": sorted(servers),
             "source_interface": source_iface,
         }
+
 
     def get_collection_requests(
         self,

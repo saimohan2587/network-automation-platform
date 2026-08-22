@@ -87,10 +87,11 @@ def parse_selection_criteria(devices_input: str) -> Dict[str, Any]:
     # Case 2: Comma-separated device name list (e.g., 'sw-access-01,sw-access-02')
     if "," in devices_input:
         device_list = [d.strip() for d in devices_input.split(",") if d.strip()]
-        return {"name__in": device_list}
+        return {"name": device_list}
 
     # Case 3: Single device name (e.g., 'sw-access-01')
     return {"name": devices_input}
+
 
 
 def parse_list_input(list_input: str) -> List[str]:
@@ -181,43 +182,36 @@ def print_execution_results(summary: DeploymentSummary, dry_run: bool) -> None:
     print("\n=================================================")
     print("Deployment Execution Summary")
     print("=================================================")
-    print(f"  Batch Size             : {summary.batch_size}")
-    print(f"  Assessment Successful  : {summary.assessment_successful_count}")
-    print(f"  Assessment Unsuccessful: {summary.assessment_unsuccessful_count}")
-    print(f"  Deployment Candidates  : {summary.deployment_candidates_count}")
-    print(f"  Devices Deployed       : {summary.devices_deployed_count}")
-    print(f"  Deployment Failed      : {summary.deployment_failed_count}")
-    print(f"  Devices Skipped        : {summary.devices_skipped_count}")
 
-    # If there are skipped devices, print breakdown
-    skipped_assessments = [
-        res for res in getattr(summary, "assessment_results", ()) if not res.is_candidate
-    ]
-    if skipped_assessments:
-        print("\n-------------------------------------------------")
-        print("Skipped Devices")
-        print("-------------------------------------------------")
-        for skipped in skipped_assessments:
-            print(f"\n  - Device Name     : {skipped.device_name}")
-            print("    Assessment Stage: Pre-Deployment Assessment")
-            print(f"    Failure Reason  : {skipped.failure_reason or 'Validation Failed'}")
-
-    print("\n-------------------------------------------------")
-    print("Device Execution Details")
-    print("-------------------------------------------------")
-
-    # Iterate over each device result and print details
     for result in summary.results:
-        print(f"\nDevice: {result.device_name}")
-        print(f"  Management IP    : {result.ip_address or 'Unknown'}")
-        print(f"  Connection Status: {result.connection_status}")
-        print(f"  Deployment Status: {result.deployment_status}")
-        print(f"  Commands Sent    : {result.commands_sent}")
-        print(f"  Execution Time   : {round(result.execution_time_seconds, 2)}s")
-        if result.error_message:
-            print(f"  Error Message    : {result.error_message}")
+        desired_cnt = getattr(result, "desired_items_count", 0)
+        compliant_cnt = getattr(result, "compliant_items_count", 0)
+        change_req = getattr(result, "change_required_count", 0)
+        cmds_sent = getattr(result, "commands_sent", 0)
+        backup_stat = "SUCCESS" if getattr(result, "backup_saved", False) else "SKIPPED/FAILED"
+        dep_stat = "SUCCESS" if result.deployment_status == "success" else "FAILED"
+        post_verif = getattr(result, "verification_status", "SKIPPED")
+        rollback_stat = getattr(result, "rollback_status", "NOT_REQUIRED")
 
-    print("\n=================================================================\n")
+        print(f"Device                 : {result.device_name}")
+        print(f"Management IP          : {result.ip_address or 'Unknown'}")
+        print(f"Desired Items          : {desired_cnt}")
+        print(f"Already Compliant      : {compliant_cnt}")
+        print(f"Change Required        : {change_req}")
+        print(f"Commands Sent          : {cmds_sent}")
+        print(f"Commands Successful    : {cmds_sent if result.deployment_status == 'success' else 0}")
+        print(f"Commands Failed        : {0 if result.deployment_status == 'success' else cmds_sent}")
+        print(f"Backup                 : {backup_stat}")
+        print(f"Deployment             : {dep_stat}")
+        print(f"Post Verification      : {post_verif}")
+        print(f"Rollback               : {rollback_stat}")
+        print(f"Final Lifecycle State  : {result.state or 'UNKNOWN'}")
+        if result.error_message and result.state != "DRY_RUN":
+            print(f"Error Message          : {result.error_message}")
+        print("-------------------------------------------------")
+
+    print("=================================================================\n")
+
 
 
 def main(raw_args: Sequence[str] = None) -> int:

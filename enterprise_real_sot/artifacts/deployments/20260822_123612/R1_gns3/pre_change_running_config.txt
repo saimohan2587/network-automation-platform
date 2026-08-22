@@ -1,0 +1,113 @@
+Building configuration...
+
+Current configuration : 1468 bytes
+!
+! Last configuration change at 06:12:29 UTC Sat Aug 22 2026 by admin
+!
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+!
+hostname R1
+!
+boot-start-marker
+boot-end-marker
+!
+!
+logging buffered 16384
+!
+no aaa new-model
+no ip icmp rate-limit unreachable
+ip cef
+!
+!
+!
+!
+!
+!
+ip domain name lab.enterprise.internal
+ip name-server 10.10.10.100
+no ipv6 cef
+!
+!
+multilink bundle-name authenticated
+!
+!
+!
+!
+!
+!
+!
+username admin privilege 15 secret 5 $1$NGz8$utqdoqv68Ru23tfiXpnUu0
+!
+!
+ip tcp synwait-time 5
+ip ssh version 2
+! 
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface FastEthernet0/0
+ ip address 10.10.10.2 255.255.255.0
+ duplex full
+!
+interface FastEthernet1/0
+ no ip address
+ shutdown
+ duplex full
+!
+interface GigabitEthernet2/0
+ ip address 10.10.20.1 255.255.255.0
+ negotiation auto
+!
+interface GigabitEthernet3/0
+ ip address 10.10.30.1 255.255.255.0
+ negotiation auto
+!
+interface GigabitEthernet4/0
+ no ip address
+ shutdown
+ negotiation auto
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+!
+logging host 10.10.10.50
+!
+snmp-server community NOC-ReadOnly RO
+snmp-server location GNS3-Staging-Rack1
+snmp-server contact NetOps-Admin
+!
+!
+control-plane
+!
+!
+line con 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+ stopbits 1
+line aux 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+ stopbits 1
+line vty 0 4
+ exec-timeout 30 0
+ login local
+ transport input ssh
+!
+ntp source FastEthernet0/0
+!
+end

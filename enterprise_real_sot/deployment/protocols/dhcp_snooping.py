@@ -21,10 +21,18 @@ class DhcpSnoopingProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "dhcp_snooping"
 
+
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER2_SWITCHING"
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains DHCP Snooping configuration."""
         settings = self._get_settings(device_context)
         return isinstance(settings, Mapping) and settings.get("enabled") is True
+
+
 
     def validate(self, device_context: Mapping[str, Any]) -> None:
         """Validate DHCP Snooping enabled state, VLAN list, and trusted interfaces."""

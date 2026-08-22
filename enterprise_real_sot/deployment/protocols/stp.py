@@ -23,10 +23,17 @@ class StpProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "stp"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER2_SWITCHING"
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains STP configuration."""
         settings = self._get_settings(device_context)
         return isinstance(settings, Mapping) and len(settings) > 0
+
+
 
     def validate(self, device_context: Mapping[str, Any]) -> None:
         """Validate STP mode, priority, and default features."""

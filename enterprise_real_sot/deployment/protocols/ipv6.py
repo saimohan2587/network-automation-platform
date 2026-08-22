@@ -21,6 +21,12 @@ class Ipv6Protocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "ipv6"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER3_ROUTING"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains IPv6 global or interface configuration."""
         settings = self._get_settings(device_context)
@@ -68,6 +74,7 @@ class Ipv6Protocol(BaseProtocol):
             commands.append(f"interface {interface_name}")
             commands.append(f" ipv6 address {address.strip()}")
             commands.append(" ipv6 enable")
+            commands.append(" exit")
 
         if commands:
             logger.info("Generated IPv6 configuration (%d command(s)).", len(commands))

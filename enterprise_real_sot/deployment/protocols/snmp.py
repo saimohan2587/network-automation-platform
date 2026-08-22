@@ -21,6 +21,12 @@ class SnmpProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "snmp"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "GLOBAL_MANAGEMENT"
+
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains SNMP configuration."""
         settings = self._get_settings(device_context)

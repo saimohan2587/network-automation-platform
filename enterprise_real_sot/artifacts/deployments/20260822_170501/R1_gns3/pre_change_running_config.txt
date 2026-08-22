@@ -1,0 +1,5 @@
+cdp run
+ntp source FastEthernet0/0
+ip domain name lab.enterprise.internal
+logging host 10.10.10.50
+snmp-server community NOC-ReadOnly RO

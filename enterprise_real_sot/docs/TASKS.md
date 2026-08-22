@@ -10,26 +10,19 @@
 - [x] Provide Import Layer validation and created/skipped/failed summary output.
 - [x] Provide deployment foundations: NetBox client, dynamic device selector, context builder, merge utility, and deployment logger.
 - [x] Document the project architecture, data model, standards, and deployment path.
+- [x] Phase 4.1: Runtime Context Builder & Multi-Protocol Generation (15 Cisco IOS Protocol Plugins: interface_base, vlan, stp, cdp, dns, syslog, snmp, ntp, port_security, aaa, etc.).
+- [x] Phase 4.2: End-to-End Enterprise CD Deployment Pipeline (SSH Netmiko Transport, Pre-Change Running-Config Backup, Change-Plan Classification, Write Memory, Automatic Inverse-Command Rollback).
+- [x] Phase 4.3: Multi-Device & Multi-Role Extension (Router `R1_gns3` & Switch `SW1_gns3`), Hardware-Aware Interface Reference Validation (`NtpProtocol`), REST API Device-Level Config Context Fetching (`ContextBuilder`), and Post-Deployment Verification (`ComplianceOrchestrator`).
 
 ## In Progress
 
-- [ ] No active implementation work is recorded in this repository.
+- [ ] Post-deployment compliance reporting optimization and cohort observability enhancements.
 
 ## Planned
 
-- [ ] Define the deployment orchestration entry point and request contract.
-- [ ] Implement a deterministic configuration generator that consumes the existing unified context.
-- [ ] Implement Cisco IOS protocol plugins, beginning with the configuration domains already modelled in NetBox: DNS, NTP, AAA, syslog, SNMP, STP, VLANs, interfaces, IPv6, OSPF, HSRP, DHCP relay, and port security.
-- [ ] Implement a Cisco device connector with authentication, safe execution controls, structured results, and error reporting.
-- [ ] Add unit tests for selector filters, context merging, generator output, and plugin behaviour.
-- [ ] Add integration tests for NetBox API interaction and controlled device deployment.
-
-## Future Enhancements
-
-- [ ] Add approval, dry-run, diff, rollback, and audit capabilities to deployment orchestration.
+- [ ] Add approval gate integrations and Slack/Webhook notifications for deployment cohorts.
 - [ ] Add concurrency controls and job tracking suitable for 10,000+ devices.
 - [ ] Add protocol and platform plugin registration that scales beyond 100 protocols without coupling implementations.
 - [ ] Add secrets-management integration; remove development defaults from runtime configuration in favour of managed secrets.
-- [ ] Add CI validation, linting, type checking, and automated test execution.
 - [ ] Expand runtime selection and reporting through NetBox tags, custom fields, and deployment cohorts.
-- [ ] Add operational metrics, structured logs, and failure-retry policies.
+

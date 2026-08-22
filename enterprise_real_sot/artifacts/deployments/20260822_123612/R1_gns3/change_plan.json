@@ -1,0 +1,41 @@
+{
+  "deployment_id": "20260822_123612",
+  "device_name": "R1_gns3",
+  "desired_items_count": 30,
+  "compliant_items_count": 8,
+  "change_required_count": 22,
+  "compliant_commands": [
+    "ip domain name lab.enterprise.internal",
+    "ip name-server 10.10.10.100",
+    "ntp source FastEthernet0/0",
+    "logging buffered 16384",
+    "logging host 10.10.10.50",
+    "snmp-server community NOC-ReadOnly RO",
+    "snmp-server location GNS3-Staging-Rack1",
+    "snmp-server contact NetOps-Admin"
+  ],
+  "change_required_commands": [
+    "interface FastEthernet0/0",
+    "no shutdown",
+    "ip address 10.10.10.2 255.255.255.0",
+    "exit",
+    "interface FastEthernet1/0",
+    "shutdown",
+    "exit",
+    "interface GigabitEthernet2/0",
+    "no shutdown",
+    "ip address 10.10.20.1 255.255.255.0",
+    "exit",
+    "interface GigabitEthernet3/0",
+    "no shutdown",
+    "ip address 10.10.30.1 255.255.255.0",
+    "exit",
+    "interface GigabitEthernet4/0",
+    "shutdown",
+    "exit",
+    "cdp run",
+    "ip domain lookup",
+    "logging facility local7",
+    "logging trap informational"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "device_name": "SW1_gns3",
+  "ip_address": "10.10.20.2",
+  "overall_status": "DRIFT",
+  "error_message": null,
+  "total_drifts": 3,
+  "drifts": [
+    {
+      "protocol": "stp",
+      "scope": "global",
+      "field_name": "mode",
+      "expected": "rapid-pvst",
+      "actual": "pvst",
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "stp",
+      "scope": "global",
+      "field_name": "bpduguard_default",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    },
+    {
+      "protocol": "stp",
+      "scope": "global",
+      "field_name": "portfast_default",
+      "expected": true,
+      "actual": false,
+      "reason": "Value mismatch"
+    }
+  ]
+}

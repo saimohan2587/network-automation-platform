@@ -425,6 +425,202 @@ def run_yaml_config_checks(root_dir="."):
     return True
 
 
+def run_capability_resolver_tests():
+    """
+    Layer 5: Capability Resolver Unit Tests.
+    Verifies that protocol capability gate accurately allows/skips plugins based on device role.
+    """
+    print("\n=================================================================")
+    print("Task: Layer 5 - Protocol Capability Gate & Applicability Tests\n")
+
+    from deployment.capability_resolver import CapabilityResolver
+    from deployment.protocols.stp import StpProtocol
+    from deployment.protocols.ntp import NtpProtocol
+    from deployment.protocols.cdp import CdpProtocol
+    from deployment.protocols.dns import DnsProtocol
+    from deployment.protocols.syslog import SyslogProtocol
+    from deployment.protocols.snmp import SnmpProtocol
+
+
+    stp = StpProtocol()
+    ntp = NtpProtocol()
+    cdp = CdpProtocol()
+    dns = DnsProtocol()
+    syslog = SyslogProtocol()
+    snmp = SnmpProtocol()
+
+    tests = [
+        # TEST 1: Router context contains STP configuration -> Skipped
+        {
+            "name": "TEST 1: Router context contains STP config -> STP skipped",
+            "plugin": stp,
+            "context": {"device_info": {"role": "l3-gateway-router"}, "config": {"stp": {"mode": "rapid-pvst"}}},
+            "expected_supported": False,
+        },
+        # TEST 2: Access switch context contains STP configuration -> Allowed
+        {
+            "name": "TEST 2: Access switch context contains STP config -> STP allowed",
+            "plugin": stp,
+            "context": {"device_info": {"role": "access-switch"}, "config": {"stp": {"mode": "rapid-pvst"}}},
+            "expected_supported": True,
+        },
+        # TEST 3: Unknown role contains STP configuration -> Skipped using safe baseline
+        {
+            "name": "TEST 3: Unknown role contains STP config -> STP skipped",
+            "plugin": stp,
+            "context": {"device_info": {"role": "unknown-device-role-123"}, "config": {"stp": {"mode": "rapid-pvst"}}},
+            "expected_supported": False,
+        },
+        # TEST 4: Router context contains NTP configuration -> Allowed
+        {
+            "name": "TEST 4: Router context contains NTP config -> NTP allowed",
+            "plugin": ntp,
+            "context": {"device_info": {"role": "l3-gateway-router"}, "config": {"ntp": {"servers": ["10.0.0.1"]}}},
+            "expected_supported": True,
+        },
+        # TEST 5: Router context contains CDP configuration -> Allowed
+        {
+            "name": "TEST 5: Router context contains CDP config -> CDP allowed",
+            "plugin": cdp,
+            "context": {"device_info": {"role": "l3-gateway-router"}, "config": {"cdp": {"enabled": True}}},
+            "expected_supported": True,
+        },
+        # TEST 6: Router context contains DNS configuration -> Allowed
+        {
+            "name": "TEST 6: Router context contains DNS config -> DNS allowed",
+            "plugin": dns,
+            "context": {"device_info": {"role": "l3-gateway-router"}, "config": {"dns": {"domain_name": "lab.internal"}}},
+            "expected_supported": True,
+        },
+        # TEST 7: Router context contains Syslog configuration -> Allowed
+        {
+            "name": "TEST 7: Router context contains Syslog config -> Syslog allowed",
+            "plugin": syslog,
+            "context": {"device_info": {"role": "l3-gateway-router"}, "config": {"syslog": {"servers": ["10.0.0.50"]}}},
+            "expected_supported": True,
+        },
+        # TEST 8: Router context contains SNMP configuration -> Allowed
+        {
+            "name": "TEST 8: Router context contains SNMP config -> SNMP allowed",
+            "plugin": snmp,
+            "context": {"device_info": {"role": "l3-gateway-router"}, "config": {"snmp": {"location": "Lab"}}},
+            "expected_supported": True,
+        },
+    ]
+
+
+    passed = 0
+    failed = 0
+
+    for test in tests:
+        res = CapabilityResolver.is_supported(test["plugin"], test["context"])
+        if res == test["expected_supported"]:
+            print(f"  [PASS] {test['name']}")
+            passed += 1
+        else:
+            print(f"  [FAIL] {test['name']} (Got: {res}, Expected: {test['expected_supported']})")
+            failed += 1
+
+    print("\n-----------------------------------------------------------------")
+    print(f"Capability Gate Summary: {passed} Passed | {failed} Failed")
+    print("-----------------------------------------------------------------")
+
+    if failed > 0:
+        print("\n[CI RESULT: FAILED] Capability gate unit tests failed.")
+        return False
+
+    print("\n[CI RESULT: PASSED] Layer 5 Capability Gate unit tests completed successfully.")
+    return True
+
+
+def run_phase43_orchestration_tests():
+    """
+    Layer 6: Phase 4.3 CD Pipeline Integration & Orchestration Tests.
+    Tests Change Planning, Idempotency, Pre-Change Backup, Selective Deployment, Rollback, and Verification.
+    """
+    print("\n=================================================================")
+    print("Task: Layer 6 - Phase 4.3 CD Selective Deployment & Rollback Tests\n")
+
+    from deployment.device_connector import DeviceConnector, DeploymentResult
+    from deployment.lifecycle import DeviceLifecycleState
+
+    class MockConnection:
+        def __init__(self, running_config="", fail_config=False):
+            self.running_config = running_config
+            self.fail_config = fail_config
+            self.sent_config_sets = []
+
+        def send_command(self, cmd, read_timeout=30):
+            if "show running-config" in cmd:
+                return self.running_config
+            if "logging" in cmd:
+                return "Logging to 10.10.10.50"
+            if "snmp" in cmd:
+                return "snmp-server community NOC-ReadOnly RO"
+            if "domain" in cmd or "name-server" in cmd:
+                return "ip domain name lab.enterprise.internal"
+            return ""
+
+        def send_config_set(self, cmds, read_timeout=120):
+            self.sent_config_sets.append(cmds)
+            if self.fail_config:
+                return "% Invalid input detected at '^' marker."
+            return "OK"
+
+        def save_config(self, cmd=None):
+            return "OK"
+
+        def disconnect(self):
+            pass
+
+    # TEST 1: Idempotency (Fully Compliant Device)
+    mock_running = "cdp run\nntp source FastEthernet0/0\nip domain name lab.enterprise.internal\nlogging host 10.10.10.50\nsnmp-server community NOC-ReadOnly RO"
+    connector = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config=mock_running))
+    res1 = connector.deploy("R1_gns3", {"host": "10.10.10.2"}, mock_running, save_config=True)
+
+    test1_pass = res1.state == DeviceLifecycleState.ALREADY_COMPLIANT.value and res1.commands_sent == 0
+
+    # TEST 2: Selective Change (1 command missing)
+    gen_config_2 = "cdp run\nlogging host 10.10.10.50\nsnmp-server location GNS3-Staging-Rack1"
+    connector2 = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config=mock_running))
+    res2 = connector2.deploy("R1_gns3", {"host": "10.10.10.2"}, gen_config_2, save_config=True)
+
+    test2_pass = res2.change_required_count == 1 and res2.commands_sent == 1
+
+    # TEST 3: CLI Error & Safe Rollback
+    connector3 = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config="", fail_config=True))
+    res3 = connector3.deploy("R1_gns3", {"host": "10.10.10.2"}, "snmp-server location Lab", save_config=True)
+
+    test3_pass = res3.state == DeviceLifecycleState.ROLLBACK_SUCCESSFUL.value and res3.rollback_status == "SUCCESSFUL"
+
+    tests = [
+        ("TEST 1: Fully compliant device -> 0 commands sent (ALREADY_COMPLIANT)", test1_pass),
+        ("TEST 2: Selective deployment -> only missing command sent (1 command)", test2_pass),
+        ("TEST 3: CLI Error detection -> triggers safe rollback (ROLLBACK_SUCCESSFUL)", test3_pass),
+    ]
+
+    passed = 0
+    failed = 0
+    for name, ok in tests:
+        if ok:
+            print(f"  [PASS] {name}")
+            passed += 1
+        else:
+            print(f"  [FAIL] {name}")
+            failed += 1
+
+    print("\n-----------------------------------------------------------------")
+    print(f"Phase 4.3 Summary: {passed} Passed | {failed} Failed")
+    print("-----------------------------------------------------------------")
+
+    if failed > 0:
+        print("\n[CI RESULT: FAILED] Phase 4.3 CD pipeline unit tests failed.")
+        return False
+
+    print("\n[CI RESULT: PASSED] Layer 6 Phase 4.3 CD Pipeline tests completed successfully.")
+    return True
+
+
 def main():
     """Main execution entrypoint for CI runner."""
     syntax_ok = run_syntax_checks()
@@ -443,11 +639,21 @@ def main():
     if not yaml_ok:
         sys.exit(1)
 
+    cap_ok = run_capability_resolver_tests()
+    if not cap_ok:
+        sys.exit(1)
+
+    p43_ok = run_phase43_orchestration_tests()
+    if not p43_ok:
+        sys.exit(1)
+
     print("\n=================================================================")
-    print(" [SUCCESS] ALL CI VALIDATION CHECKS PASSED (LAYERS 1, 2, 3 & 4) ")
+    print(" [SUCCESS] ALL CI VALIDATION CHECKS PASSED (LAYERS 1, 2, 3, 4, 5 & 6)")
     print("=================================================================")
     sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
+
+

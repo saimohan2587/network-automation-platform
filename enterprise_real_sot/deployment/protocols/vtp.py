@@ -27,10 +27,17 @@ class VtpProtocol(BaseProtocol):
         """Return the identifier used by ConfigGenerator discovery."""
         return "vtp"
 
+    @property
+    def protocol_category(self) -> str:
+        """Return functional protocol category."""
+        return "LAYER2_SWITCHING"
+
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether the context contains VTP configuration."""
         vtp_settings = self._get_vtp_settings(device_context)
         return isinstance(vtp_settings, Mapping) and bool(vtp_settings)
+
+
 
     def validate(self, device_context: Mapping[str, Any]) -> None:
         """Validate VTP settings required for CLI generation."""

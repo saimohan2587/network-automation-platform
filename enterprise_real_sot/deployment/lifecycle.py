@@ -1,0 +1,40 @@
+"""CD Execution State and Lifecycle Standardization for Network Automation Platform."""
+
+from enum import Enum
+
+
+class DeviceLifecycleState(str, Enum):
+    """Standardized execution lifecycle states for an individual network device in CD."""
+
+    SELECTED = "SELECTED"
+    VALIDATED = "VALIDATED"
+    VALIDATION_FAILED = "VALIDATION_FAILED"
+    DRY_RUN = "DRY_RUN"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"  # Reserved for Phase 4.3
+    APPROVED = "APPROVED"                    # Reserved for Phase 4.3
+    DEPLOYING = "DEPLOYING"
+    DEPLOYED = "DEPLOYED"
+    DEPLOYED_AND_VERIFIED = "DEPLOYED_AND_VERIFIED"
+    DEPLOYED_VERIFICATION_FAILED = "DEPLOYED_VERIFICATION_FAILED"
+    ALREADY_COMPLIANT = "ALREADY_COMPLIANT"
+    DEPLOYMENT_FAILED = "DEPLOYMENT_FAILED"
+    ROLLBACK_ATTEMPTED = "ROLLBACK_ATTEMPTED"
+    ROLLBACK_SUCCESSFUL = "ROLLBACK_SUCCESSFUL"
+    ROLLBACK_FAILED = "ROLLBACK_FAILED"
+    POST_VALIDATION = "POST_VALIDATION"
+    COMPLETED = "COMPLETED"
+    POST_VALIDATION_FAILED = "POST_VALIDATION_FAILED"
+
+
+
+
+class BatchLifecycleState(str, Enum):
+    """Standardized lifecycle states for a deployment batch."""
+
+    INITIALIZED = "INITIALIZED"
+    ASSESSING = "ASSESSING"
+    ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED"
+    DEPLOYING = "DEPLOYING"
+    COMPLETED = "COMPLETED"
+    PARTIALLY_FAILED = "PARTIALLY_FAILED"
+    FAILED = "FAILED"

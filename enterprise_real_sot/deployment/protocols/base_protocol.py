@@ -31,6 +31,12 @@ class BaseProtocol(ABC):
     def protocol_name(self) -> str:
         """Return the plugin's human-readable protocol identifier."""
 
+    @property
+    def protocol_category(self) -> str:
+        """Return the plugin's functional category (BASE_INTERFACE, LAYER2_SWITCHING, LAYER3_ROUTING, GLOBAL_MANAGEMENT)."""
+        return "GLOBAL_MANAGEMENT"
+
+
     @abstractmethod
     def is_applicable(self, device_context: Mapping[str, Any]) -> bool:
         """Return whether this plugin applies to the supplied device context.

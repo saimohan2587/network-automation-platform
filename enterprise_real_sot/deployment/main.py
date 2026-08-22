@@ -17,6 +17,7 @@ from deployment.netbox_client import NetBoxClient
 
 
 from deployment.credentials import CredentialResolver
+from deployment.lifecycle import BatchLifecycleState, DeviceLifecycleState
 from pre_deployment_validation import PreDeploymentValidator, PreDeploymentValidationReport
 
 
@@ -49,6 +50,8 @@ class AssessmentResult:
     generated_configuration: Optional[str] = None
     validation_report: Optional[PreDeploymentValidationReport] = None
     is_candidate: bool = False
+    failure_reason: Optional[str] = None
+    state: str = DeviceLifecycleState.SELECTED.value
 # Aggregated outcome summary dataclass reporting overall execution results across all target switches.
 @dataclass(frozen=True)
 class DeploymentSummary:
@@ -132,11 +135,24 @@ class DeploymentOrchestrator:
             return self._failed_summary(request_error)
 
         logger.info("Deployment started.")
+        # Stage 0: Automated NetBox SoT Sync (synchronize CSV config context into NetBox REST API)
+        try:
+            import os, sys
+            importers_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../python/importers"))
+            if importers_dir not in sys.path:
+                sys.path.insert(0, importers_dir)
+            from import_config_context import run_config_context_import
+            logger.info("Synchronizing CSV Config Context intent into NetBox REST API...")
+            run_config_context_import()
+        except Exception as sync_err:
+            logger.warning("Automated Config Context pre-sync warning: %s", sync_err)
+
         try:
             # Stage 1: Query NetBox to select target network devices matching specified filter criteria.
             selected_devices = self.device_selector.select_devices(
                 dict(deployment_request.selection_criteria)
             )
+
         except Exception as error:
             message = f"Device selection failed: {error}"
             logger.error(message)
@@ -243,7 +259,60 @@ class DeploymentOrchestrator:
             )
 
         # =========================================================================
-        # PHASE 3: BATCH SUMMARY REPORTING
+        # PHASE 3: POST-DEPLOYMENT COMPLIANCE VALIDATION (REUSING ComplianceOrchestrator)
+        # =========================================================================
+        if not deployment_request.dry_run:
+            try:
+                from post_deployment_validation.main import ComplianceOrchestrator, ComplianceRequest
+                logger.info("=== PHASE 3: POST-DEPLOYMENT COMPLIANCE VALIDATION ===")
+                compliance_orchestrator = ComplianceOrchestrator(netbox_client=self.netbox_client)
+                comp_req = ComplianceRequest(
+                    selection_criteria=deployment_request.selection_criteria,
+                    connection_details=deployment_request.connection_details,
+                    requested_protocols=deployment_request.requested_protocols,
+                    requested_interfaces=deployment_request.requested_interfaces,
+                )
+                compliance_summary = compliance_orchestrator.run(comp_req)
+                logger.info(
+                    "Post-Deployment Compliance Validation complete: Compliant=%d, Drifted=%d, Failed=%d.",
+                    compliance_summary.compliant_device_count,
+                    compliance_summary.drifted_device_count,
+                    compliance_summary.failed_device_count,
+                )
+                # Map ComplianceOrchestrator outcomes to DeviceLifecycleState
+                comp_map = {res.device_name: res.overall_status for res in compliance_summary.results}
+                updated_results = []
+                for res in deployment_results:
+                    if res.device_name in comp_map and res.deployment_status == "success":
+                        st = comp_map[res.device_name]
+                        final_state = DeviceLifecycleState.DEPLOYED_AND_VERIFIED.value if st == "COMPLIANT" else DeviceLifecycleState.DEPLOYED_VERIFICATION_FAILED.value
+                        ver_stat = "SUCCESS" if st == "COMPLIANT" else "FAILED"
+                        updated_results.append(
+                            DeploymentResult(
+                                device_name=res.device_name,
+                                ip_address=res.ip_address,
+                                connection_status=res.connection_status,
+                                deployment_status=res.deployment_status,
+                                commands_sent=res.commands_sent,
+                                execution_time_seconds=res.execution_time_seconds,
+                                error_message=res.error_message,
+                                state=final_state if res.state != DeviceLifecycleState.ALREADY_COMPLIANT.value else res.state,
+                                desired_items_count=res.desired_items_count,
+                                compliant_items_count=res.compliant_items_count,
+                                change_required_count=res.change_required_count,
+                                backup_saved=res.backup_saved,
+                                rollback_status=res.rollback_status,
+                                verification_status=ver_stat,
+                            )
+                        )
+                    else:
+                        updated_results.append(res)
+                deployment_results = updated_results
+            except Exception as comp_err:
+                logger.warning("Post-deployment ComplianceOrchestrator execution warning: %s", comp_err)
+
+        # =========================================================================
+        # PHASE 4: BATCH SUMMARY REPORTING
         # =========================================================================
         summary = self._build_summary(
             selected_device_count=len(selected_devices),
@@ -256,6 +325,7 @@ class DeploymentOrchestrator:
         )
         self._log_summary(summary)
         return summary
+
 
     def _assess_device(
         self,
@@ -270,6 +340,7 @@ class DeploymentOrchestrator:
                 device=device if isinstance(device, Mapping) else None,
                 is_candidate=False,
                 failure_reason="Selected device is missing a valid name.",
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
             )
 
         connection_details = None
@@ -287,6 +358,7 @@ class DeploymentOrchestrator:
                     device=device,
                     is_candidate=False,
                     failure_reason=message,
+                    state=DeviceLifecycleState.VALIDATION_FAILED.value,
                 )
 
         try:
@@ -322,6 +394,7 @@ class DeploymentOrchestrator:
                     validation_report=validation_report,
                     is_candidate=False,
                     failure_reason=error_msg,
+                    state=DeviceLifecycleState.VALIDATION_FAILED.value,
                 )
 
             # Calculate generated command count
@@ -335,7 +408,7 @@ class DeploymentOrchestrator:
                 len(cmd_lines),
             )
 
-            # Pre-Deployment Assessment passed: Mark as Deployment Candidate
+            # Pre-Deployment Assessment passed: Mark as Deployment Candidate with VALIDATED state
             return AssessmentResult(
                 device_name=device_name,
                 device=device,
@@ -344,6 +417,7 @@ class DeploymentOrchestrator:
                 generated_configuration=generated_configuration,
                 validation_report=validation_report,
                 is_candidate=True,
+                state=DeviceLifecycleState.VALIDATED.value,
             )
 
         except Exception as error:
@@ -355,6 +429,7 @@ class DeploymentOrchestrator:
                 connection_details=connection_details,
                 is_candidate=False,
                 failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
             )
 
     def _deploy_candidate(
@@ -381,21 +456,48 @@ class DeploymentOrchestrator:
                 commands_sent=0,
                 execution_time_seconds=0.0,
                 error_message=generated_configuration,
+                state=DeviceLifecycleState.DRY_RUN.value,
             )
 
         logger.info(
-            "Deploying approved configuration (%d commands) to device '%s' at '%s'.",
+            "Deploying approved configuration (%d commands) to device '%s' at '%s'. State: DEPLOYING.",
             len(cmd_lines),
             device_name,
             self._target_address(connection_details),
         )
         try:
-            return self.device_connector.deploy(
+            raw_result = self.device_connector.deploy(
                 device_name=device_name,
                 connection_details=connection_details,
                 generated_configuration=generated_configuration,
                 save_config=deployment_request.save_config,
             )
+            final_state = (
+                raw_result.state
+                if raw_result.state
+                else (
+                    DeviceLifecycleState.DEPLOYED.value
+                    if raw_result.deployment_status == "success"
+                    else DeviceLifecycleState.DEPLOYMENT_FAILED.value
+                )
+            )
+            return DeploymentResult(
+                device_name=raw_result.device_name,
+                ip_address=raw_result.ip_address,
+                connection_status=raw_result.connection_status,
+                deployment_status=raw_result.deployment_status,
+                commands_sent=raw_result.commands_sent,
+                execution_time_seconds=raw_result.execution_time_seconds,
+                error_message=raw_result.error_message,
+                state=final_state,
+                desired_items_count=getattr(raw_result, "desired_items_count", 0),
+                compliant_items_count=getattr(raw_result, "compliant_items_count", 0),
+                change_required_count=getattr(raw_result, "change_required_count", 0),
+                backup_saved=getattr(raw_result, "backup_saved", False),
+                rollback_status=getattr(raw_result, "rollback_status", "NOT_REQUIRED"),
+                verification_status=getattr(raw_result, "verification_status", "SKIPPED"),
+            )
+
         except Exception as error:
             message = f"Deployment execution failed: {error}"
             logger.error("%s Device: '%s'.", message, device_name)
@@ -403,6 +505,7 @@ class DeploymentOrchestrator:
                 device_name,
                 self._target_address(connection_details),
                 message,
+                state=DeviceLifecycleState.DEPLOYMENT_FAILED.value,
             )
 
     @staticmethod
@@ -438,6 +541,7 @@ class DeploymentOrchestrator:
         device_name: str,
         ip_address: Optional[str],
         error_message: str,
+        state: str = DeviceLifecycleState.VALIDATION_FAILED.value,
     ) -> DeploymentResult:
         """Create a structured failure before a connector result is available."""
         return DeploymentResult(
@@ -448,7 +552,9 @@ class DeploymentOrchestrator:
             commands_sent=0,
             execution_time_seconds=0.0,
             error_message=error_message,
+            state=state,
         )
+
 
     @staticmethod
     def _target_address(connection_details: Mapping[str, Any]) -> Optional[str]:
