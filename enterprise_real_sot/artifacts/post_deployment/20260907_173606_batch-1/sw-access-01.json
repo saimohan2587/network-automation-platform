@@ -1,0 +1,8 @@
+{
+  "device_name": "sw-access-01",
+  "ip_address": "",
+  "overall_status": "FAILED",
+  "error_message": "Credential resolution failed: Device 'sw-access-01' does not have a primary IPv4 address configured in NetBox.",
+  "total_drifts": 0,
+  "drifts": []
+}

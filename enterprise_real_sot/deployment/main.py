@@ -157,7 +157,18 @@ class DeploymentOrchestrator:
             # selects devices, never syncs SoT, never rebuilds context, never
             # regenerates configuration, never re-validates. See _run_from_artifact.
             summary = self._run_from_artifact(deployment_request)
-            return self._apply_approval_metadata(summary, deployment_request)
+            summary = self._apply_approval_metadata(summary, deployment_request)
+            # Phase 4 -- write deployment_result.json AFTER approval metadata is
+            # stamped, so the record on disk (which cd-deploy.yml reads back)
+            # actually contains --approved-by/--approval-ref, not their defaults.
+            if summary.artifact_dir and summary.results:
+                try:
+                    from deployment.artifact_manager import write_deployment_result
+                    result_path = write_deployment_result(Path(summary.artifact_dir), summary)
+                    logger.info("Saved deployment result record -> %s", result_path)
+                except Exception as write_err:
+                    logger.warning("Could not write deployment_result.json: %s", write_err)
+            return summary
 
         logger.info("Deployment started.")
         # Stage 0: Automated NetBox SoT Sync (synchronize CSV config context into NetBox REST API).
@@ -321,41 +332,7 @@ class DeploymentOrchestrator:
                     compliance_summary.unreachable_device_count,
                     compliance_summary.failed_device_count,
                 )
-                # Map ComplianceOrchestrator outcomes to DeviceLifecycleState. This is the
-                # ONLY place deployment/main.py touches the post_deployment_validation
-                # verdict -- it reads `overall_status` verbatim and never re-derives it.
-                comp_map = {res.device_name: res.overall_status for res in compliance_summary.results}
-                updated_results = []
-                for res in deployment_results:
-                    if res.device_name in comp_map and res.deployment_status == "success":
-                        st = comp_map[res.device_name]
-                        # `state` may stay a coarse deployment lifecycle stage (verified vs.
-                        # not), but `verification_status` below carries the EXACT verdict
-                        # string from post_deployment_validation (COMPLIANT/DRIFT/
-                        # UNREACHABLE/FAILED) -- never collapsed into a SUCCESS/FAILED pair.
-                        final_state = DeviceLifecycleState.DEPLOYED_AND_VERIFIED.value if st == "COMPLIANT" else DeviceLifecycleState.DEPLOYED_VERIFICATION_FAILED.value
-                        ver_stat = st
-                        updated_results.append(
-                            DeploymentResult(
-                                device_name=res.device_name,
-                                ip_address=res.ip_address,
-                                connection_status=res.connection_status,
-                                deployment_status=res.deployment_status,
-                                commands_sent=res.commands_sent,
-                                execution_time_seconds=res.execution_time_seconds,
-                                error_message=res.error_message,
-                                state=final_state if res.state != DeviceLifecycleState.ALREADY_COMPLIANT.value else res.state,
-                                desired_items_count=res.desired_items_count,
-                                compliant_items_count=res.compliant_items_count,
-                                change_required_count=res.change_required_count,
-                                backup_saved=res.backup_saved,
-                                rollback_status=res.rollback_status,
-                                verification_status=ver_stat,
-                            )
-                        )
-                    else:
-                        updated_results.append(res)
-                deployment_results = updated_results
+                deployment_results = self._apply_compliance_verdicts(deployment_results, compliance_summary)
             except Exception as comp_err:
                 logger.warning("Post-deployment ComplianceOrchestrator execution warning: %s", comp_err)
 
@@ -450,6 +427,46 @@ class DeploymentOrchestrator:
         # backup, selective push, rollback, save-config -- none of that changes).
         for candidate in deployment_candidates:
             deployment_results.append(self._deploy_candidate(candidate, deployment_request))
+
+        # =========================================================================
+        # PHASE 4: POST-DEPLOYMENT COMPLIANCE VALIDATION (REUSING ComplianceOrchestrator)
+        # Mirrors the normal path's Phase 3 block exactly (same helper, same verdict
+        # ownership), but verifies ONLY the devices that were just successfully
+        # deployed from THIS artifact -- using their already device_id-verified
+        # fresh NetBox records -- and NEVER re-selects via site/role/name criteria.
+        # =========================================================================
+        if not deployment_request.dry_run:
+            result_by_device_name = {res.device_name: res for res in deployment_results}
+            devices_to_verify = [
+                candidate.device
+                for candidate in deployment_candidates
+                if candidate.device is not None
+                and result_by_device_name.get(candidate.device_name) is not None
+                and result_by_device_name[candidate.device_name].deployment_status == "success"
+            ]
+            if devices_to_verify:
+                try:
+                    from post_deployment_validation.main import ComplianceOrchestrator, ComplianceRequest
+                    logger.info("=== PHASE 4: POST-DEPLOYMENT COMPLIANCE VALIDATION (ARTIFACT MODE) ===")
+                    compliance_orchestrator = ComplianceOrchestrator(netbox_client=self.netbox_client)
+                    comp_req = ComplianceRequest(
+                        selection_criteria={},
+                        connection_details=None,
+                        requested_protocols=deployment_request.requested_protocols,
+                        requested_interfaces=deployment_request.requested_interfaces,
+                        batch_name=manifest.get("batch_id"),
+                    )
+                    compliance_summary = compliance_orchestrator.evaluate_devices(devices_to_verify, comp_req)
+                    logger.info(
+                        "Post-Deployment Compliance Validation complete: Compliant=%d, Drifted=%d, Unreachable=%d, Failed=%d.",
+                        compliance_summary.compliant_device_count,
+                        compliance_summary.drifted_device_count,
+                        compliance_summary.unreachable_device_count,
+                        compliance_summary.failed_device_count,
+                    )
+                    deployment_results = self._apply_compliance_verdicts(deployment_results, compliance_summary)
+                except Exception as comp_err:
+                    logger.warning("Post-deployment ComplianceOrchestrator execution warning: %s", comp_err)
 
         summary = self._build_summary(
             selected_device_count=len(assessment_results),
@@ -589,6 +606,57 @@ class DeploymentOrchestrator:
             is_candidate=True,
             state=DeviceLifecycleState.VALIDATED.value,
         )
+
+    @staticmethod
+    def _apply_compliance_verdicts(
+        deployment_results: Sequence[DeploymentResult],
+        compliance_summary: Any,
+    ) -> List[DeploymentResult]:
+        """Merge post_deployment_validation verdicts onto successfully-deployed
+        DeploymentResults. This is the ONLY place deployment/main.py touches the
+        post_deployment_validation verdict -- it reads `overall_status` verbatim
+        and never re-derives, renames, or collapses it. Used by both the normal
+        (site/role-selected) deployment path and the Phase 4 artifact-replay path,
+        so the two never diverge in how a verdict is recorded.
+
+        `state` may still become a coarse deployment lifecycle stage (verified vs.
+        not), but `verification_status` always carries the EXACT verdict string
+        (COMPLIANT/DRIFT/UNREACHABLE/FAILED) -- never collapsed into a SUCCESS/
+        FAILED pair.
+        """
+        comp_map = {res.device_name: res.overall_status for res in compliance_summary.results}
+        updated_results = []
+        for res in deployment_results:
+            if res.device_name in comp_map and res.deployment_status == "success":
+                st = comp_map[res.device_name]
+                final_state = (
+                    DeviceLifecycleState.DEPLOYED_AND_VERIFIED.value
+                    if st == "COMPLIANT"
+                    else DeviceLifecycleState.DEPLOYED_VERIFICATION_FAILED.value
+                )
+                updated_results.append(
+                    DeploymentResult(
+                        device_name=res.device_name,
+                        ip_address=res.ip_address,
+                        connection_status=res.connection_status,
+                        deployment_status=res.deployment_status,
+                        commands_sent=res.commands_sent,
+                        execution_time_seconds=res.execution_time_seconds,
+                        error_message=res.error_message,
+                        state=final_state if res.state != DeviceLifecycleState.ALREADY_COMPLIANT.value else res.state,
+                        desired_items_count=res.desired_items_count,
+                        compliant_items_count=res.compliant_items_count,
+                        change_required_count=res.change_required_count,
+                        backup_saved=res.backup_saved,
+                        rollback_status=res.rollback_status,
+                        verification_status=st,
+                        approved_by=res.approved_by,
+                        approval_ref=res.approval_ref,
+                    )
+                )
+            else:
+                updated_results.append(res)
+        return updated_results
 
     @staticmethod
     def _apply_approval_metadata(

@@ -1,5 +1,0 @@
-Building configuration...
-
-Current configuration : 0 bytes
-!
-end

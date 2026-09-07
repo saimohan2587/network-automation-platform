@@ -957,6 +957,17 @@ def run_cd_plan_safety_tests():
     return _run_function_style_test_module(16, "CD Plan Workflow Safety (Phase 3) Unit Tests", _tests)
 
 
+def run_cd_deploy_safety_tests():
+    """Layer 17: Phase 4 Controlled CD Deployment unit tests. Proves a non-
+    deployable/missing artifact blocks before SSH and before the compliance
+    check; approval metadata cannot bypass the manifest safety gate; a valid
+    approved artifact drives the real deploy path with the exact config; and
+    COMPLIANT/DRIFT/UNREACHABLE verdicts survive into DeploymentResult and
+    deployment_result.json verbatim, never collapsed into SUCCESS/FAILED."""
+    from deployment.tests.test_cd_deploy_safety import ALL_TESTS as _tests
+    return _run_function_style_test_module(17, "CD Deploy Safety (Phase 4) Unit Tests", _tests)
+
+
 def main():
     """Main execution entrypoint for CI runner."""
     syntax_ok = run_syntax_checks()
@@ -1023,8 +1034,12 @@ def main():
     if not cd_plan_safety_ok:
         sys.exit(1)
 
+    cd_deploy_safety_ok = run_cd_deploy_safety_tests()
+    if not cd_deploy_safety_ok:
+        sys.exit(1)
+
     print("\n=================================================================")
-    print(" [SUCCESS] ALL CI VALIDATION CHECKS PASSED (LAYERS 1-16)")
+    print(" [SUCCESS] ALL CI VALIDATION CHECKS PASSED (LAYERS 1-17)")
     print("=================================================================")
     sys.exit(0)
 

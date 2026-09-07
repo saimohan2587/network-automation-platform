@@ -62,7 +62,7 @@ class ComplianceOrchestrator:
         self.artifact_manager = artifact_manager or ArtifactManager()
 
     def run(self, request: ComplianceRequest) -> ComplianceSummary:
-        """Run compliance evaluation workflow across selected network devices."""
+        """Run compliance evaluation workflow across NetBox-selected network devices."""
         logger.info("Compliance evaluation started.")
 
         try:
@@ -81,20 +81,31 @@ class ComplianceOrchestrator:
             )
 
         logger.info("Selected %d device(s) for compliance check.", len(selected_devices))
+        return self.evaluate_devices(selected_devices, request)
 
+    def evaluate_devices(
+        self,
+        devices: Sequence[Mapping[str, Any]],
+        request: ComplianceRequest,
+    ) -> ComplianceSummary:
+        """Run compliance evaluation for an EXPLICIT, already-known device list --
+        never re-selects via NetBox filter criteria. `run()` uses this for the
+        normal site/role/name-selected flow; Phase 4 controlled deployment
+        (deployment/main.py's artifact-mode path) calls this directly with the
+        exact, already device_id-verified devices it just deployed, so
+        verification never silently drifts onto a different NetBox selection
+        than what was actually pushed.
+        """
+        devices = list(devices)
         device_results: List[DeviceComplianceResult] = []
         compliant_count = 0
         drifted_count = 0
         unreachable_count = 0
         failed_count = 0
 
-        for device in selected_devices:
+        for device in devices:
             result = self._evaluate_device(device, request)
             device_results.append(result)
-
-            site = str(device.get("site", {}).get("slug", "hyderabad")) if isinstance(device.get("site"), dict) else "hyderabad"
-            role = str(device.get("device_role", {}).get("slug", "access")) if isinstance(device.get("device_role"), dict) else "access"
-            dev_name = str(device.get("name", "unknown"))
 
             # Sole verdict classification point (mirrors DeviceComplianceResult.overall_status):
             # COMPLIANT / DRIFT / UNREACHABLE / FAILED. Nothing outside this package
@@ -108,15 +119,15 @@ class ComplianceOrchestrator:
             else:
                 failed_count += 1
 
-        # Derive batch name from request or selected device name
+        # Derive batch name from request or the device list itself
         batch_name = request.batch_name
         if not batch_name:
-            if len(selected_devices) == 1:
-                batch_name = str(selected_devices[0].get("name", "single_device"))
+            if len(devices) == 1:
+                batch_name = str(devices[0].get("name", "single_device"))
             elif "site" in request.selection_criteria:
                 batch_name = str(request.selection_criteria.get("site"))
             else:
-                batch_name = f"batch_{len(selected_devices)}"
+                batch_name = f"batch_{len(devices)}"
 
         timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -124,7 +135,7 @@ class ComplianceOrchestrator:
         artifact_dir = self.artifact_manager.create_post_deployment_dir(batch_name)
 
         summary = ComplianceSummary(
-            selected_device_count=len(selected_devices),
+            selected_device_count=len(devices),
             compliant_device_count=compliant_count,
             drifted_device_count=drifted_count,
             failed_device_count=failed_count,

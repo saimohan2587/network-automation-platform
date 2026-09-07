@@ -1,0 +1,281 @@
+name: CD Deploy (Phase 4 -- Controlled Deployment of an Approved Artifact)
+
+# Manual trigger ONLY. This is the first GitHub CD stage allowed to connect to
+# devices -- .github/workflows/cd-plan.yml (Phase 3) remains plan-only and is
+# NOT modified by this workflow. Deployment must always be explicitly started
+# by a human, naming the EXACT Phase 3 artifact to deploy -- never "latest".
+"on":
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: >
+          The GitHub Actions run ID of the "CD Plan" (Phase 3) workflow run that
+          produced the artifact to deploy (found in that run's URL, e.g.
+          .../actions/runs/<this number>). Pins the exact plan run -- never
+          "whatever ran most recently".
+        required: true
+      artifact_name:
+        description: >
+          The exact artifact name from that Phase 3 run's summary/upload step,
+          e.g. "pre_deployment_20260907_153000_gns3-staging". Pins the exact
+          artifact bundle within that run.
+        required: true
+      save_config:
+        description: "Persist to startup-config after pushing (same as deployment/cli.py --save-config). Default: false."
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+  actions: read   # required to download an artifact from a DIFFERENT run (artifact_run_id) than this one
+
+# Serializes deployments to the shared device fleet this project currently
+# targets (GNS3 staging: R1_gns3, SW1_gns3, SW2_gns3) -- not a global lock
+# across unrelated repos/workflows, but specific to this one shared
+# environment, so two deploy runs can never race against the same devices.
+# cancel-in-progress is deliberately false: a deployment already mid-flight
+# must run to completion (or fail on its own terms) rather than being
+# yanked out from under a device with a partially-applied config.
+concurrency:
+  group: cd-deploy-gns3-staging
+  cancel-in-progress: false
+
+jobs:
+  cd-deploy:
+    name: Deploy Approved Artifact
+    runs-on: ubuntu-latest
+    # --------------------------------------------------------------------
+    # HUMAN APPROVAL GATE:
+    # This environment does not exist in the repository yet. Declaring
+    # `environment:` here is necessary but NOT sufficient for a real approval
+    # gate -- GitHub only enforces a pause for review if this environment is
+    # created under Settings -> Environments with "Required reviewers"
+    # configured. Until that is done, this line provides NO enforcement by
+    # itself (audit trail via the environment's deployment history still
+    # applies once created, but nothing blocks the run). Do not treat this
+    # workflow as gated until that environment protection rule is confirmed
+    # configured in the repository settings.
+    # --------------------------------------------------------------------
+    environment: gns3-staging-deployment
+
+    defaults:
+      run:
+        working-directory: enterprise_real_sot
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Resolve Artifact Paths
+        id: paths
+        run: |
+          echo "workspace_relative=enterprise_real_sot/artifacts/deployed/${{ github.event.inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
+          echo "job_relative=artifacts/deployed/${{ github.event.inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
+
+      # Downloads into artifacts/deployed/ (never artifacts/pre_deployment/) so
+      # a downloaded, already-approved artifact can never be confused with a
+      # locally-planned one. This is the ONLY artifact this job will ever
+      # touch -- no "latest directory" fallback exists anywhere in this workflow.
+      - name: Download Approved Deployment Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.inputs.artifact_name }}
+          run-id: ${{ github.event.inputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ steps.paths.outputs.workspace_relative }}
+
+      # Reuses deployment.artifact_manager.verify_manifest() (Phase 0) exactly
+      # -- recomputes every config SHA-256 and the batch_hash from the files on
+      # disk, and rejects deployable=false -- BEFORE any device is touched.
+      - name: Verify Artifact Integrity (manifest, hashes, batch_hash, deployable)
+        id: verify
+        env:
+          ARTIFACT_DIR: ${{ steps.paths.outputs.job_relative }}
+        run: |
+          python3 << 'PYEOF'
+          import os
+          import sys
+          from pathlib import Path
+
+          from deployment.artifact_manager import verify_manifest
+
+          artifact_dir = Path(os.environ["ARTIFACT_DIR"])
+          result = verify_manifest(artifact_dir)
+          manifest = result["manifest"] or {}
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"valid={'true' if result['valid'] else 'false'}\n")
+              f.write(f"batch_id={manifest.get('batch_id', '')}\n")
+              f.write(f"git_commit_sha={manifest.get('git_commit_sha', '')}\n")
+
+          if not result["valid"]:
+              print("Artifact verification FAILED -- deployment will NOT proceed:")
+              for err in result["errors"]:
+                  print(f"  - {err}")
+              sys.exit(1)
+
+          devices = manifest.get("devices", [])
+          print(f"Artifact verified OK. batch_id={manifest.get('batch_id')} deployable={manifest.get('deployable')} devices={len(devices)}")
+          PYEOF
+
+      # Blast-radius visibility BEFORE any SSH connection. Reads ONLY
+      # manifest.json's structured fields -- never .cfg file contents, never
+      # secrets (manifest.json never contains credentials -- see Phase 0).
+      - name: Write Pre-Deployment Plan Summary
+        if: ${{ !cancelled() && steps.verify.outputs.valid == 'true' }}
+        env:
+          ARTIFACT_DIR: ${{ steps.paths.outputs.job_relative }}
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact_dir = Path(os.environ["ARTIFACT_DIR"])
+          manifest = json.loads((artifact_dir / "manifest.json").read_text(encoding="utf-8"))
+          devices = manifest.get("devices", [])
+
+          lines = [
+              "## Phase 4 -- Controlled Deployment Plan\n",
+              f"- **Batch ID**: `{manifest.get('batch_id')}`",
+              f"- **Git Commit SHA (artifact origin)**: `{manifest.get('git_commit_sha')}`",
+              f"- **Artifact Name**: `${{ github.event.inputs.artifact_name }}`",
+              f"- **Source Plan Run ID**: `${{ github.event.inputs.artifact_run_id }}`",
+              f"- **Devices Targeted**: {len(devices)}",
+              "- **Approved By**: `${{ github.actor }}`",
+              "- **Approval Reference**: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`\n",
+              "### Devices Targeted\n",
+              "| Device ID | Device Name | Config File |",
+              "|---|---|---|",
+          ]
+          for d in devices:
+              lines.append(f"| {d.get('device_id')} | {d.get('device_name')} | {d.get('config_file')} |")
+          lines.append("")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("\n".join(lines) + "\n")
+          PYEOF
+
+      # --------------------------------------------------------------------
+      # RUNNER / NETBOX / DEVICE CONNECTIVITY REALITY (read before running):
+      # deployment/config.py defaults NETBOX_URL to http://localhost:8000/api/
+      # (see .env.example) if the secret is unset. A GitHub-hosted
+      # `ubuntu-latest` runner has NO route to a NetBox instance or GNS3 lab
+      # running on a developer machine or an internal-only network. For this
+      # step to reach NetBox AND the target devices, NETBOX_URL/NETBOX_TOKEN
+      # must point to infrastructure this runner can actually reach, AND the
+      # devices themselves (R1_gns3/SW1_gns3/SW2_gns3) must be reachable from
+      # this runner over the network (not just NetBox's inventory of them).
+      # If either is only reachable from your internal network, this step
+      # will correctly FAIL with a connection/identity error -- that failure
+      # is expected and must not be worked around by faking success. A
+      # self-hosted runner with access to that network is the real fix
+      # (not implemented in this phase, per scope).
+      # --------------------------------------------------------------------
+      - name: Deploy Approved Artifact (REAL SSH -- device configuration WILL be pushed)
+        id: deploy
+        if: ${{ !cancelled() && steps.verify.outputs.valid == 'true' }}
+        continue-on-error: true
+        env:
+          NETBOX_URL: ${{ secrets.NETBOX_URL }}
+          NETBOX_TOKEN: ${{ secrets.NETBOX_TOKEN }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_SECRET: ${{ secrets.SSH_SECRET }}
+          ARTIFACT_DIR: ${{ steps.paths.outputs.job_relative }}
+        run: |
+          set -o pipefail
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SAVE_FLAG=""
+          if [ "${{ github.event.inputs.save_config }}" = "true" ]; then
+            SAVE_FLAG="--save-config"
+          fi
+          python -m deployment.cli \
+            --use-artifact-dir "$ARTIFACT_DIR" \
+            --approved-by "${{ github.actor }}" \
+            --approval-ref "$RUN_URL" \
+            $SAVE_FLAG \
+            2>&1 | tee cd_deploy_output.log
+          echo "cli_exit_code=$?" >> "$GITHUB_OUTPUT"
+        # NOTE: --dry-run is intentionally NEVER passed here -- this step
+        # performs the real, approved deployment. --sync-sot is intentionally
+        # NEVER passed here either, for the same reason it never is in
+        # cd-plan.yml: this workflow deploys the artifact exactly as approved,
+        # it never re-syncs or regenerates anything.
+
+      # Reads deployment_result.json (written by DeploymentOrchestrator itself
+      # for --use-artifact-dir runs -- see deployment/artifact_manager.py's
+      # write_deployment_result()), which records deployment_status and
+      # verification_status SEPARATELY and VERBATIM for every device --
+      # COMPLIANT/DRIFT/UNREACHABLE/FAILED are never collapsed here either.
+      - name: Write Deployment Result Summary
+        id: summary
+        if: ${{ !cancelled() && steps.verify.outputs.valid == 'true' }}
+        env:
+          ARTIFACT_DIR: ${{ steps.paths.outputs.job_relative }}
+          CLI_EXIT_CODE: ${{ steps.deploy.outputs.cli_exit_code }}
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact_dir = Path(os.environ["ARTIFACT_DIR"])
+          result_path = artifact_dir / "deployment_result.json"
+          cli_exit_code = os.environ.get("CLI_EXIT_CODE", "unknown")
+
+          BAD_VERDICTS = {"DRIFT", "UNREACHABLE", "FAILED"}
+          lines = ["## Phase 4 -- Deployment Result\n"]
+          deploy_ok = False
+
+          if not result_path.exists():
+              lines.append(f"No `deployment_result.json` was produced (deployment/cli.py exit code: `{cli_exit_code}`).\n")
+              lines.append("This means deployment did not reach the point of recording per-device results -- treat as FAILED.\n")
+          else:
+              payload = json.loads(result_path.read_text(encoding="utf-8"))
+              results = payload.get("results", [])
+
+              lines.append("| Device | Deployment Status | Verification Status |")
+              lines.append("|---|---|---|")
+              for r in results:
+                  lines.append(f"| {r.get('device_name')} | {r.get('deployment_status')} | {r.get('verification_status')} |")
+              lines.append("")
+
+              deploy_ok = bool(results) and all(
+                  r.get("deployment_status") == "success" and r.get("verification_status") not in BAD_VERDICTS
+                  for r in results
+              )
+              lines.append(f"- **Overall**: {'READY -- all devices deployed and verified' if deploy_ok else 'NOT fully successful -- see table above'}")
+              lines.append(f"- **deployment/cli.py exit code**: `{cli_exit_code}`\n")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("\n".join(lines) + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"deploy_ok={'true' if deploy_ok else 'false'}\n")
+          PYEOF
+
+      # Authoritative pass/fail gate for this job: a config push succeeding
+      # does NOT mean overall success -- DRIFT/UNREACHABLE/FAILED verification,
+      # a push failure, or an unverifiable artifact must all fail the job.
+      - name: Fail If Deployment Or Verification Did Not Fully Succeed
+        if: >-
+          ${{ !cancelled() && (
+            steps.verify.outputs.valid != 'true' ||
+            steps.summary.outputs.deploy_ok != 'true'
+          ) }}
+        run: |
+          echo "Deployment did not fully succeed: either the artifact failed verification," >&2
+          echo "or at least one device was not both successfully deployed AND verified COMPLIANT." >&2
+          echo "See the Job Summary above for exact per-device deployment/verification status." >&2
+          exit 1

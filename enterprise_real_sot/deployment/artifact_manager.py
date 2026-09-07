@@ -1,8 +1,9 @@
 """
 Purpose   : Manages persistent timestamped artifact directories (`artifacts/pre_deployment/`), saving generated `.cfg` files,
-            summary reports, and the manifest.json deployment contract (device identity + SHA-256 hashes + batch hash).
-Called By : main.py (`DeploymentOrchestrator.run()`), deployment/cli.py (`--use-artifact-dir` verification path).
-Calls Next: Writes `.cfg`, `summary.txt`, and `manifest.json` to local file system.
+            summary reports, the manifest.json deployment contract (device identity + SHA-256 hashes + batch hash), and
+            (Phase 4) the deployment_result.json controlled-deployment execution record.
+Called By : main.py (`DeploymentOrchestrator.run()`, `_run_from_artifact()`), deployment/cli.py (`--use-artifact-dir` verification path).
+Calls Next: Writes `.cfg`, `summary.txt`, `manifest.json`, and `deployment_result.json` to local file system.
 """
 
 import hashlib
@@ -350,3 +351,53 @@ def verify_manifest(artifact_dir: Path) -> Dict[str, Any]:
         )
 
     return {"valid": len(errors) == 0, "errors": errors, "manifest": manifest}
+
+
+def write_deployment_result(artifact_dir: Path, summary: Any) -> Path:
+    """
+    Writes deployment_result.json -- the Phase 4 controlled-deployment execution
+    record for this artifact -- into the SAME artifact directory that was
+    deployed, alongside manifest.json/summary.txt, so a downloaded artifact is
+    self-describing after a real `--use-artifact-dir` run.
+
+    Records, per device, `deployment_status` (did the SSH config push succeed)
+    and `verification_status` (the exact post_deployment_validation verdict:
+    COMPLIANT/DRIFT/UNREACHABLE/FAILED, or a deployment-layer status like
+    SKIPPED/NOT_REQUIRED when verification did not run for that device) side
+    by side, verbatim -- this function never collapses or renames either one.
+
+    `summary` is a `deployment.main.DeploymentSummary` (accepted structurally,
+    not by import, to avoid a circular import between this module and main.py).
+    """
+    artifact_dir = Path(artifact_dir)
+
+    results = []
+    for result in summary.results:
+        results.append({
+            "device_name": result.device_name,
+            "ip_address": result.ip_address,
+            "connection_status": result.connection_status,
+            "deployment_status": result.deployment_status,
+            "verification_status": result.verification_status,
+            "state": result.state,
+            "commands_sent": result.commands_sent,
+            "backup_saved": result.backup_saved,
+            "rollback_status": result.rollback_status,
+            "error_message": result.error_message,
+            "approved_by": result.approved_by,
+            "approval_ref": result.approval_ref,
+        })
+
+    payload = {
+        "selected_device_count": summary.selected_device_count,
+        "succeeded_device_count": summary.succeeded_device_count,
+        "failed_device_count": summary.failed_device_count,
+        "results": results,
+    }
+
+    result_path = artifact_dir / "deployment_result.json"
+    with open(result_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+
+    return result_path

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m deployment.tests.test_cd_deploy_safety)",
+      "Bash(python3 /tmp/claude-1001/-home-saimohan-vscode-nac-NETWORK-AUTOMATION-PLATFORM/d94eaf28-fddf-4a4e-ba29-f7a33ddb4871/scratchpad/e2e_phase4.py)"
+    ]
+  }
+}
