@@ -544,6 +544,18 @@ def run_phase43_orchestration_tests():
     from deployment.device_connector import DeviceConnector, DeploymentResult
     from deployment.lifecycle import DeviceLifecycleState
 
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    # Isolate this layer's artifact writes (DeviceConnector.deploy() saves
+    # pre-change backups/change-plans to disk on every call) into a throwaway
+    # temp directory instead of the real project's artifacts/deployments/ --
+    # production behavior is unchanged since DeviceConnector still defaults to
+    # "artifacts/deployments" when artifacts_base_dir is not passed.
+    tmp_artifacts_dir = tempfile.mkdtemp(prefix="ci_layer6_artifacts_")
+    artifacts_base_dir = Path(tmp_artifacts_dir)
+
     class MockConnection:
         def __init__(self, running_config="", fail_config=False):
             self.running_config = running_config
@@ -575,14 +587,14 @@ def run_phase43_orchestration_tests():
 
     # TEST 1: Idempotency (Fully Compliant Device)
     mock_running = "cdp run\nntp source FastEthernet0/0\nip domain name lab.enterprise.internal\nlogging host 10.10.10.50\nsnmp-server community NOC-ReadOnly RO"
-    connector = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config=mock_running))
+    connector = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config=mock_running), artifacts_base_dir=artifacts_base_dir)
     res1 = connector.deploy("R1_gns3", {"host": "10.10.10.2"}, mock_running, save_config=True)
 
     test1_pass = res1.state == DeviceLifecycleState.ALREADY_COMPLIANT.value and res1.commands_sent == 0
 
     # TEST 2: Selective Change (1 command missing)
     gen_config_2 = "cdp run\nlogging host 10.10.10.50\nsnmp-server location GNS3-Staging-Rack1"
-    connector2 = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config=mock_running))
+    connector2 = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config=mock_running), artifacts_base_dir=artifacts_base_dir)
     res2 = connector2.deploy("R1_gns3", {"host": "10.10.10.2"}, gen_config_2, save_config=True)
 
     test2_pass = res2.change_required_count == 1 and res2.commands_sent == 1
@@ -730,7 +742,7 @@ def run_phase43_orchestration_tests():
         interfaces={"GigabitEthernet0/1": ["shutdown", "negotiation auto"]},
         fail_deploy=True,
     )
-    connector3 = DeviceConnector(connection_factory=lambda **kw: device3)
+    connector3 = DeviceConnector(connection_factory=lambda **kw: device3, artifacts_base_dir=artifacts_base_dir)
     res3 = connector3.deploy(
         "SW1_gns3",
         {"host": "10.10.20.2"},
@@ -750,7 +762,7 @@ def run_phase43_orchestration_tests():
         fail_deploy=True,
         fail_rollback_commands=True,
     )
-    connector4 = DeviceConnector(connection_factory=lambda **kw: device4)
+    connector4 = DeviceConnector(connection_factory=lambda **kw: device4, artifacts_base_dir=artifacts_base_dir)
     res4 = connector4.deploy(
         "SW1_gns3",
         {"host": "10.10.20.2"},
@@ -768,7 +780,7 @@ def run_phase43_orchestration_tests():
         fail_deploy=True,
         rollback_executes_but_does_not_restore=True,
     )
-    connector5 = DeviceConnector(connection_factory=lambda **kw: device5)
+    connector5 = DeviceConnector(connection_factory=lambda **kw: device5, artifacts_base_dir=artifacts_base_dir)
     res5 = connector5.deploy(
         "SW1_gns3",
         {"host": "10.10.20.2"},
@@ -784,7 +796,7 @@ def run_phase43_orchestration_tests():
     # TEST 6: VLAN creation fails -> rollback removes the newly-created VLAN ->
     # verified absent (mirrors the platform's own required Example 1).
     device6 = StatefulMockDevice(vlans={}, fail_deploy=True)
-    connector6 = DeviceConnector(connection_factory=lambda **kw: device6)
+    connector6 = DeviceConnector(connection_factory=lambda **kw: device6, artifacts_base_dir=artifacts_base_dir)
     res6 = connector6.deploy(
         "SW1_gns3",
         {"host": "10.10.20.2"},
@@ -821,9 +833,11 @@ def run_phase43_orchestration_tests():
 
     if failed > 0:
         print("\n[CI RESULT: FAILED] Phase 4.3 CD pipeline unit tests failed.")
+        shutil.rmtree(tmp_artifacts_dir, ignore_errors=True)
         return False
 
     print("\n[CI RESULT: PASSED] Layer 6 Phase 4.3 CD Pipeline tests completed successfully.")
+    shutil.rmtree(tmp_artifacts_dir, ignore_errors=True)
     return True
 
 

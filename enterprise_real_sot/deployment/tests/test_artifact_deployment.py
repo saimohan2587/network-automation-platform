@@ -25,9 +25,47 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
+import post_deployment_validation.main as compliance_main_module
 from deployment.artifact_manager import write_manifest
 from deployment.device_connector import DeploymentResult
 from deployment.main import DeploymentOrchestrator, DeploymentRequest
+from post_deployment_validation.report import ComplianceSummary
+
+
+class _NoOpComplianceOrchestrator:
+    """Stand-in for post_deployment_validation.main.ComplianceOrchestrator.
+
+    These tests exercise the artifact-deploy path itself, not post-deployment
+    verification, so a minimal always-COMPLIANT summary is enough -- the real
+    ComplianceOrchestrator would otherwise write real files to the project's
+    actual artifacts/post_deployment/ directory via its own default
+    ArtifactManager(), since this test module never overrides that. Patched at
+    module level because deployment/main.py's _run_from_artifact() imports
+    ComplianceOrchestrator locally, at call time, from this exact module.
+    """
+
+    def __init__(self, netbox_client=None):
+        pass
+
+    def evaluate_devices(self, devices, request):
+        return ComplianceSummary(
+            selected_device_count=len(devices),
+            compliant_device_count=len(devices),
+            drifted_device_count=0,
+            failed_device_count=0,
+            results=[],
+            unreachable_device_count=0,
+        )
+
+
+def _patch_compliance_orchestrator():
+    original = compliance_main_module.ComplianceOrchestrator
+    compliance_main_module.ComplianceOrchestrator = _NoOpComplianceOrchestrator
+    return original
+
+
+def _restore_compliance_orchestrator(original):
+    compliance_main_module.ComplianceOrchestrator = original
 
 
 @dataclass(frozen=True)
@@ -160,21 +198,25 @@ def _build_orchestrator(
 # Test 1 -- Valid artifact loads and deploys successfully
 # --------------------------------------------------------------------------
 def test_valid_artifact_loads_and_deploys_successfully():
-    with tempfile.TemporaryDirectory() as tmp:
-        artifact_dir = Path(tmp)
-        _write_valid_artifact(artifact_dir)
+    original = _patch_compliance_orchestrator()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact_dir = Path(tmp)
+            _write_valid_artifact(artifact_dir)
 
-        netbox = _FakeNetBoxClient({1: {"id": 1, "name": "sw-access-01", "last_updated": "2026-01-01T00:00:00Z"}})
-        connector = _FakeDeviceConnector()
-        orchestrator = _build_orchestrator(netbox_client=netbox, device_connector=connector)
+            netbox = _FakeNetBoxClient({1: {"id": 1, "name": "sw-access-01", "last_updated": "2026-01-01T00:00:00Z"}})
+            connector = _FakeDeviceConnector()
+            orchestrator = _build_orchestrator(netbox_client=netbox, device_connector=connector)
 
-        request = DeploymentRequest(selection_criteria={}, artifact_dir=str(artifact_dir))
-        summary = orchestrator.run(request)
+            request = DeploymentRequest(selection_criteria={}, artifact_dir=str(artifact_dir))
+            summary = orchestrator.run(request)
 
-        assert summary.error_message is None
-        assert summary.failed_device_count == 0
-        assert summary.assessment_passed_count == 1
-        assert len(connector.deploy_calls) == 1
+            assert summary.error_message is None
+            assert summary.failed_device_count == 0
+            assert summary.assessment_passed_count == 1
+            assert len(connector.deploy_calls) == 1
+    finally:
+        _restore_compliance_orchestrator(original)
 
 
 # --------------------------------------------------------------------------
@@ -247,46 +289,54 @@ def test_deployable_false_blocks_deployment():
 # Test 5 -- Config regeneration protection (the most important test)
 # --------------------------------------------------------------------------
 def test_config_regeneration_protection_context_builder_config_generator_validator_never_called():
-    with tempfile.TemporaryDirectory() as tmp:
-        artifact_dir = Path(tmp)
-        _write_valid_artifact(artifact_dir)
+    original = _patch_compliance_orchestrator()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact_dir = Path(tmp)
+            _write_valid_artifact(artifact_dir)
 
-        netbox = _FakeNetBoxClient({1: {"id": 1, "name": "sw-access-01"}})
-        context_builder = _CallCountingStage()
-        config_generator = _CallCountingStage()
-        pre_deployment_validator = _CallCountingStage()
-        orchestrator = _build_orchestrator(
-            netbox_client=netbox,
-            context_builder=context_builder,
-            config_generator=config_generator,
-            pre_deployment_validator=pre_deployment_validator,
-        )
+            netbox = _FakeNetBoxClient({1: {"id": 1, "name": "sw-access-01"}})
+            context_builder = _CallCountingStage()
+            config_generator = _CallCountingStage()
+            pre_deployment_validator = _CallCountingStage()
+            orchestrator = _build_orchestrator(
+                netbox_client=netbox,
+                context_builder=context_builder,
+                config_generator=config_generator,
+                pre_deployment_validator=pre_deployment_validator,
+            )
 
-        summary = orchestrator.run(DeploymentRequest(selection_criteria={}, artifact_dir=str(artifact_dir)))
+            summary = orchestrator.run(DeploymentRequest(selection_criteria={}, artifact_dir=str(artifact_dir)))
 
-        assert summary.error_message is None
-        assert context_builder.call_count == 0
-        assert config_generator.call_count == 0
-        assert pre_deployment_validator.call_count == 0
+            assert summary.error_message is None
+            assert context_builder.call_count == 0
+            assert config_generator.call_count == 0
+            assert pre_deployment_validator.call_count == 0
+    finally:
+        _restore_compliance_orchestrator(original)
 
 
 # --------------------------------------------------------------------------
 # Test 6 -- Exact config deployment (byte-identical to the artifact file)
 # --------------------------------------------------------------------------
 def test_exact_config_content_is_handed_to_deploy_engine():
-    with tempfile.TemporaryDirectory() as tmp:
-        artifact_dir = Path(tmp)
-        exact_content = "hostname sw-access-01\ninterface GigabitEthernet1/0/1\n switchport mode access\n!\n"
-        _write_valid_artifact(artifact_dir, config_content=exact_content)
+    original = _patch_compliance_orchestrator()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact_dir = Path(tmp)
+            exact_content = "hostname sw-access-01\ninterface GigabitEthernet1/0/1\n switchport mode access\n!\n"
+            _write_valid_artifact(artifact_dir, config_content=exact_content)
 
-        netbox = _FakeNetBoxClient({1: {"id": 1, "name": "sw-access-01"}})
-        connector = _FakeDeviceConnector()
-        orchestrator = _build_orchestrator(netbox_client=netbox, device_connector=connector)
+            netbox = _FakeNetBoxClient({1: {"id": 1, "name": "sw-access-01"}})
+            connector = _FakeDeviceConnector()
+            orchestrator = _build_orchestrator(netbox_client=netbox, device_connector=connector)
 
-        orchestrator.run(DeploymentRequest(selection_criteria={}, artifact_dir=str(artifact_dir)))
+            orchestrator.run(DeploymentRequest(selection_criteria={}, artifact_dir=str(artifact_dir)))
 
-        assert len(connector.deploy_calls) == 1
-        assert connector.deploy_calls[0]["generated_configuration"] == exact_content
+            assert len(connector.deploy_calls) == 1
+            assert connector.deploy_calls[0]["generated_configuration"] == exact_content
+    finally:
+        _restore_compliance_orchestrator(original)
 
 
 # --------------------------------------------------------------------------

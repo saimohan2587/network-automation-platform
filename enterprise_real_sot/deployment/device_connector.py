@@ -5,6 +5,7 @@ Calls Next: Physical Network Switch (Cisco IOS SSH), returning DeploymentResult 
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, List, Mapping, Optional
 
@@ -64,8 +65,13 @@ class DeviceConnector:
     def __init__(
         self,
         connection_factory: Optional[Callable[..., Any]] = None,
+        artifacts_base_dir: Optional[Path] = None,
     ) -> None:
         self._connection_factory = connection_factory
+        # Production default is unchanged: "artifacts/deployments" relative to
+        # the process's current working directory. Tests may inject a
+        # temporary directory here instead of writing into the real project tree.
+        self._artifacts_base_dir = Path(artifacts_base_dir) if artifacts_base_dir else Path("artifacts/deployments")
 
     def deploy(
         self,
@@ -128,9 +134,8 @@ class DeviceConnector:
             # Save pre-change artifacts
             from datetime import datetime
             import json
-            from pathlib import Path
             deployment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-            artifact_dir = Path("artifacts/deployments") / deployment_id / device_name
+            artifact_dir = self._artifacts_base_dir / deployment_id / device_name
             artifact_dir.mkdir(parents=True, exist_ok=True)
 
             if running_config:

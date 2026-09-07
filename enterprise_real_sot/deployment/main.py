@@ -134,6 +134,7 @@ class DeploymentOrchestrator:
         device_connector: Optional[DeviceConnector] = None,
         credential_resolver: Optional[CredentialResolver] = None,
         pre_deployment_validator: Optional[PreDeploymentValidator] = None,
+        artifacts_base_dir: Optional[Path] = None,
     ) -> None:
         # Dependency injection pattern: Instantiates default stage collaborators if none are provided.
         # This allows injecting mock objects during unit testing to test each pipeline stage independently.
@@ -144,6 +145,10 @@ class DeploymentOrchestrator:
         self.device_connector = device_connector or DeviceConnector()
         self.credential_resolver = credential_resolver or CredentialResolver()
         self.pre_deployment_validator = pre_deployment_validator or PreDeploymentValidator()
+        # Production default is unchanged: None here means create_pre_deployment_dir()
+        # falls back to its own DEFAULT_ARTIFACTS_DIR (the real artifacts/ tree).
+        # Tests may inject a temporary directory instead.
+        self._artifacts_base_dir = artifacts_base_dir
 
     def run(self, deployment_request: DeploymentRequest) -> DeploymentSummary:
         """Run the deployment workflow and return its aggregated outcome."""
@@ -241,6 +246,7 @@ class DeploymentOrchestrator:
                 selection_criteria=deployment_request.selection_criteria,
                 devices=selected_devices,
                 timestamp=now,
+                artifacts_base_dir=self._artifacts_base_dir,
             )
             artifact_dir_str = str(artifact_dir)
             batch_name = generate_batch_name(

@@ -20,6 +20,7 @@ any live NetBox or SSH, that this normal planning path:
 
 import json
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
@@ -109,7 +110,7 @@ class _RecordingDeviceConnector:
         raise AssertionError("DeviceConnector.deploy() must never be called during a --dry-run CD Plan")
 
 
-def _build_plan_orchestrator(devices, fail_devices=None):
+def _build_plan_orchestrator(devices, artifacts_base_dir, fail_devices=None):
     context_builder = _RecordingContextBuilder()
     config_generator = _RecordingConfigGenerator()
     validator = _RecordingPreDeploymentValidator(fail_devices=fail_devices)
@@ -121,73 +122,79 @@ def _build_plan_orchestrator(devices, fail_devices=None):
         pre_deployment_validator=validator,
         credential_resolver=_FakeCredentialResolver(),
         device_connector=connector,
+        artifacts_base_dir=artifacts_base_dir,
     )
     return orchestrator, context_builder, config_generator, validator, connector
 
 
 def test_dry_run_plan_never_calls_device_connector_deploy():
-    orchestrator, context_builder, config_generator, validator, connector = _build_plan_orchestrator(
-        [R1_GNS3, SW1_GNS3]
-    )
-    request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
-    summary = orchestrator.run(request)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        orchestrator, context_builder, config_generator, validator, connector = _build_plan_orchestrator(
+            [R1_GNS3, SW1_GNS3], artifacts_base_dir=Path(tmp_dir)
+        )
+        request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
+        summary = orchestrator.run(request)
 
-    assert connector.deploy_calls == []
-    assert context_builder.calls == 2
-    assert config_generator.calls == 2
-    assert validator.calls == 2
-    assert summary.assessment_passed_count == 2
+        assert connector.deploy_calls == []
+        assert context_builder.calls == 2
+        assert config_generator.calls == 2
+        assert validator.calls == 2
+        assert summary.assessment_passed_count == 2
 
 
 def test_dry_run_plan_writes_phase0_artifact_with_manifest():
-    orchestrator, *_ = _build_plan_orchestrator([R1_GNS3, SW1_GNS3])
-    request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
-    summary = orchestrator.run(request)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        orchestrator, *_ = _build_plan_orchestrator([R1_GNS3, SW1_GNS3], artifacts_base_dir=Path(tmp_dir))
+        request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
+        summary = orchestrator.run(request)
 
-    assert summary.artifact_dir is not None
-    manifest_path = Path(summary.artifact_dir) / "manifest.json"
-    assert manifest_path.exists()
+        assert summary.artifact_dir is not None
+        assert str(Path(tmp_dir)) in summary.artifact_dir  # confirms isolation actually took effect
+        manifest_path = Path(summary.artifact_dir) / "manifest.json"
+        assert manifest_path.exists()
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest["deployable"] is True
-    assert len(manifest["devices"]) == 2
-    assert manifest["excluded_devices"] == []
-    assert manifest["batch_hash"] is not None
-    assert (Path(summary.artifact_dir) / "summary.txt").exists()
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["deployable"] is True
+        assert len(manifest["devices"]) == 2
+        assert manifest["excluded_devices"] == []
+        assert manifest["batch_hash"] is not None
+        assert (Path(summary.artifact_dir) / "summary.txt").exists()
 
 
 def test_dry_run_plan_excludes_failed_device_but_remains_deployable_zero_ssh():
-    orchestrator, _, _, _, connector = _build_plan_orchestrator(
-        [R1_GNS3, SW1_GNS3], fail_devices=["SW1_gns3"]
-    )
-    request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
-    summary = orchestrator.run(request)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        orchestrator, _, _, _, connector = _build_plan_orchestrator(
+            [R1_GNS3, SW1_GNS3], artifacts_base_dir=Path(tmp_dir), fail_devices=["SW1_gns3"]
+        )
+        request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
+        summary = orchestrator.run(request)
 
-    manifest = json.loads((Path(summary.artifact_dir) / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["deployable"] is True
-    assert len(manifest["devices"]) == 1
-    assert manifest["devices"][0]["device_name"] == "R1_gns3"
-    assert len(manifest["excluded_devices"]) == 1
-    assert manifest["excluded_devices"][0]["device_name"] == "SW1_gns3"
-    # Zero SSH for BOTH the deployable candidate and the excluded device.
-    assert connector.deploy_calls == []
+        manifest = json.loads((Path(summary.artifact_dir) / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["deployable"] is True
+        assert len(manifest["devices"]) == 1
+        assert manifest["devices"][0]["device_name"] == "R1_gns3"
+        assert len(manifest["excluded_devices"]) == 1
+        assert manifest["excluded_devices"][0]["device_name"] == "SW1_gns3"
+        # Zero SSH for BOTH the deployable candidate and the excluded device.
+        assert connector.deploy_calls == []
 
 
 def test_dry_run_plan_all_devices_fail_validation_produces_non_deployable_manifest():
-    orchestrator, _, _, _, connector = _build_plan_orchestrator(
-        [R1_GNS3, SW1_GNS3], fail_devices=["R1_gns3", "SW1_gns3"]
-    )
-    request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
-    summary = orchestrator.run(request)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        orchestrator, _, _, _, connector = _build_plan_orchestrator(
+            [R1_GNS3, SW1_GNS3], artifacts_base_dir=Path(tmp_dir), fail_devices=["R1_gns3", "SW1_gns3"]
+        )
+        request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
+        summary = orchestrator.run(request)
 
-    manifest = json.loads((Path(summary.artifact_dir) / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["deployable"] is False
-    assert manifest["devices"] == []
-    assert len(manifest["excluded_devices"]) == 2
-    assert connector.deploy_calls == []
-    # This is exactly the condition cd-plan.yml's "Fail If Plan Is Not
-    # Deployable" step gates on.
-    assert summary.failed_device_count > 0
+        manifest = json.loads((Path(summary.artifact_dir) / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["deployable"] is False
+        assert manifest["devices"] == []
+        assert len(manifest["excluded_devices"]) == 2
+        assert connector.deploy_calls == []
+        # This is exactly the condition cd-plan.yml's "Fail If Plan Is Not
+        # Deployable" step gates on.
+        assert summary.failed_device_count > 0
 
 
 def test_dry_run_plan_never_triggers_csv_to_netbox_sot_sync_by_default():
@@ -195,9 +202,10 @@ def test_dry_run_plan_never_triggers_csv_to_netbox_sot_sync_by_default():
     to False, so the CSV->NetBox sync module must never even be imported."""
     sync_module_present_before = "import_config_context" in sys.modules
 
-    orchestrator, *_ = _build_plan_orchestrator([R1_GNS3])
-    request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
-    orchestrator.run(request)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        orchestrator, *_ = _build_plan_orchestrator([R1_GNS3], artifacts_base_dir=Path(tmp_dir))
+        request = DeploymentRequest(selection_criteria={"site": "gns3-staging"}, dry_run=True)
+        orchestrator.run(request)
 
     assert ("import_config_context" in sys.modules) == sync_module_present_before
 
