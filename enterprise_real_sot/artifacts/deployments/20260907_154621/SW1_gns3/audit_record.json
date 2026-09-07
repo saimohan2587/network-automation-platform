@@ -1,0 +1,11 @@
+{
+  "deployment_id": "20260907_154621",
+  "device_name": "SW1_gns3",
+  "backup_location": "artifacts/deployments/20260907_154621/SW1_gns3/pre_change_running_config.txt",
+  "deployment_status": "failed",
+  "failure_reason": "CLI error on switch: % Invalid input detected at '^' marker.",
+  "rollback_triggered": true,
+  "rollback_status": "SUCCESSFUL",
+  "rollback_verification_result": "All 1 touched section(s) verified to match pre-deployment state.",
+  "timestamp": "2026-09-07T10:16:21.792739+00:00"
+}

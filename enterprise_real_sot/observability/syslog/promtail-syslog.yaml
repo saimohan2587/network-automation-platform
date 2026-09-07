@@ -1,0 +1,32 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: debug
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: syslog_udp
+    syslog:
+      listen_address: 0.0.0.0:1514
+      listen_protocol: udp
+      idle_timeout: 1h
+      use_incoming_timestamp: false
+      label_structured_data: false
+      labels:
+        job: "syslog"
+
+  - job_name: syslog_tcp
+    syslog:
+      listen_address: 0.0.0.0:1515
+      listen_protocol: tcp
+      idle_timeout: 1h
+      use_incoming_timestamp: false
+      label_structured_data: false
+      labels:
+        job: "syslog"
+

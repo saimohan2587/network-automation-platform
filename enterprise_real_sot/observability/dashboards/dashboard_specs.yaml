@@ -1,0 +1,55 @@
+# ==============================================================================
+# ABC Telecom Network Automation Platform - Dashboard Specifications
+# ==============================================================================
+# Purpose: Define panel layouts, query targets, and visualization specs for
+#          Grafana Network Fleet Observability Dashboard (8 Datapoints).
+# Specification: Declarative Grafana Dashboard Definition
+# ==============================================================================
+
+version: "1.0.0"
+
+dashboards:
+  - id: network_device_health_overview
+    title: "Network Fleet Infrastructure Health (R1_gns3, SW1_gns3, SW2_gns3)"
+    refresh_interval: "5s"
+    panels:
+      - title: "Device UP / DOWN Reachability"
+        type: stat
+        query: 'up{job="snmp_devices"}'
+        description: "Binary ICMP/SNMP reachability status (1=UP, 0=DOWN)"
+
+      - title: "System Uptime"
+        type: stat
+        query: 'sysUpTime / 100 / 86400'
+        description: "Device running uptime in days"
+
+      - title: "Device Hostname Inventory"
+        type: table
+        query: 'sysName'
+        description: "Administratively assigned device sysName label"
+
+      - title: "Cisco CPU Utilization (%)"
+        type: timeseries
+        query: 'cisco_cpu_utilization_percent'
+        description: "5-minute average CPU processing load percentage"
+
+      - title: "Cisco Memory Pool Utilization (%)"
+        type: timeseries
+        query: 'cisco_memory_used_bytes / (cisco_memory_used_bytes + cisco_memory_free_bytes) * 100'
+        description: "Percentage of allocated RAM memory pool"
+
+      - title: "Interface Operational Status (1=UP, 2=DOWN)"
+        type: timeseries
+        query: 'ifOperStatus'
+        description: "RFC 2863 interface link operational status"
+
+      - title: "Interface Packet Errors (In/Out Rate)"
+        type: timeseries
+        query: 'rate(ifInErrors[5m]) + rate(ifOutErrors[5m])'
+        description: "Combined inbound and outbound packet error rates per second"
+
+      - title: "Real-Time Cisco Syslog Events & Flaps"
+        type: logs
+        query: '{job="syslog"}'
+        description: "Real-time indexed UDP syslog log stream from network devices"
+

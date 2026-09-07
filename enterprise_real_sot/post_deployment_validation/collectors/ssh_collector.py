@@ -3,9 +3,31 @@
 from typing import Any, Dict, List, Mapping
 
 from netmiko import ConnectHandler
+from netmiko.exceptions import (
+    ConnectionException,
+    NetmikoAuthenticationException,
+    NetmikoTimeoutException,
+)
 
-from post_deployment_validation.collectors.base_collector import BaseCollector, CollectionError
+from post_deployment_validation.collectors.base_collector import (
+    BaseCollector,
+    CollectionError,
+    DeviceUnreachableError,
+)
 from post_deployment_validation.logger import get_logger
+
+# Exceptions that mean the device itself could not be reached/authenticated to
+# -- SSH timeout, TCP connection refused, network unreachable, DNS failure, or
+# the device rejecting our SSH credentials -- as opposed to a bug in our own
+# parsing/collection code. OSError covers the raw socket-level failures (e.g.
+# paramiko's NoValidConnectionsError, ConnectionRefusedError, socket.gaierror)
+# that occur before Netmiko even gets far enough to raise its own exception.
+_UNREACHABLE_EXCEPTIONS = (
+    NetmikoTimeoutException,
+    NetmikoAuthenticationException,
+    ConnectionException,
+    OSError,
+)
 
 logger = get_logger("SSHCollector")
 
@@ -74,6 +96,11 @@ class SSHCollector(BaseCollector):
                 raw_results[command] = output if isinstance(output, str) else str(output)
 
             return raw_results
+
+        except _UNREACHABLE_EXCEPTIONS as unreachable_error:
+            message = f"Device '{device_name}' is unreachable for read-only collection: {unreachable_error}"
+            logger.error(message)
+            raise DeviceUnreachableError(message) from unreachable_error
 
         except Exception as error:
             message = f"SSH data collection failed for '{device_name}': {error}"

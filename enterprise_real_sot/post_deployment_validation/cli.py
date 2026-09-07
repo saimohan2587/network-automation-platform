@@ -89,6 +89,19 @@ def parse_list_input(list_input: str) -> List[str]:
     return [item.strip() for item in cleaned.split(",") if item.strip()]
 
 
+def _exit_code_for(summary: ComplianceSummary) -> int:
+    """0 only if every device's verdict was COMPLIANT; DRIFT, UNREACHABLE, and
+    FAILED all mean the process must exit non-zero. This reads the counts
+    ComplianceOrchestrator already classified -- it never reclassifies a verdict."""
+    if (
+        summary.drifted_device_count == 0
+        and summary.unreachable_device_count == 0
+        and summary.failed_device_count == 0
+    ):
+        return 0
+    return 1
+
+
 def main(raw_args: Sequence[str] = None) -> int:
     """Compliance CLI execution entry point."""
     # Use command-line arguments if none were explicitly passed
@@ -126,8 +139,7 @@ def main(raw_args: Sequence[str] = None) -> int:
     # Display final compliance evaluation results report
     ComplianceReporter.print_execution_results(summary)
 
-    # Return exit code 0 for COMPLIANT, 1 if DRIFT or failures were detected
-    return 0 if (summary.drifted_device_count == 0 and summary.failed_device_count == 0) else 1
+    return _exit_code_for(summary)
 
 
 if __name__ == "__main__":

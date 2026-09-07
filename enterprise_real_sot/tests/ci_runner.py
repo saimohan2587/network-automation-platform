@@ -587,16 +587,222 @@ def run_phase43_orchestration_tests():
 
     test2_pass = res2.change_required_count == 1 and res2.commands_sent == 1
 
-    # TEST 3: CLI Error & Safe Rollback
-    connector3 = DeviceConnector(connection_factory=lambda **kw: MockConnection(running_config="", fail_config=True))
-    res3 = connector3.deploy("R1_gns3", {"host": "10.10.10.2"}, "snmp-server location Lab", save_config=True)
+    # ------------------------------------------------------------------------
+    # Rollback correctness tests (TEST 3-6).
+    #
+    # These replace a previous "TEST 3" that asserted ROLLBACK_SUCCESSFUL using
+    # a MockConnection whose send_command("show running-config") always
+    # returned the same static string regardless of what send_config_set was
+    # sent - meaning it was structurally incapable of detecting whether a
+    # rollback actually restored anything. It was, in effect, a test that
+    # certified the false-success bug as correct behavior.
+    #
+    # StatefulMockDevice below tracks real mutable interface/VLAN/global state,
+    # applies commands to it the way IOS would, and only reports what is
+    # actually true when re-queried - so these tests can genuinely distinguish
+    # "rollback commands were sent" from "the device was actually restored".
+    # ------------------------------------------------------------------------
 
-    test3_pass = res3.state == DeviceLifecycleState.ROLLBACK_SUCCESSFUL.value and res3.rollback_status == "SUCCESSFUL"
+    import re as _re
+
+    class StatefulMockDevice:
+        """A minimal but faithful simulated Cisco IOS config store: real mutable
+        state, generic command application, and a running-config renderer that
+        reflects whatever the current state actually is at query time."""
+
+        def __init__(
+            self,
+            interfaces=None,
+            vlans=None,
+            global_lines=None,
+            fail_deploy=False,
+            fail_rollback_commands=False,
+            rollback_executes_but_does_not_restore=False,
+        ):
+            self.interfaces = {k: list(v) for k, v in (interfaces or {}).items()}
+            self.vlans = dict(vlans or {})
+            self.global_lines = list(global_lines or [])
+            self.fail_deploy = fail_deploy
+            self.fail_rollback_commands = fail_rollback_commands
+            self.rollback_executes_but_does_not_restore = rollback_executes_but_does_not_restore
+            self.send_config_set_calls = 0
+
+        def render_running_config(self):
+            lines = ["Building configuration...", "", "Current configuration : 0 bytes", "!"]
+            for vid in sorted(self.vlans, key=int):
+                lines.append(f"vlan {vid}")
+                if self.vlans[vid]:
+                    lines.append(f" name {self.vlans[vid]}")
+            lines.extend(self.global_lines)
+            for iface, sublines in self.interfaces.items():
+                lines.append(f"interface {iface}")
+                for s in sublines:
+                    lines.append(f" {s}")
+                lines.append("!")
+            lines.append("end")
+            return "\n".join(lines)
+
+        def _apply(self, cmds):
+            ctx = None  # None | ("interface", name) | ("vlan", id)
+            for raw in cmds:
+                line = raw.strip()
+                if not line or line == "!":
+                    ctx = None
+                    continue
+                m = _re.match(r"^default interface (\S+)$", line, _re.IGNORECASE)
+                if m:
+                    self.interfaces[m.group(1)] = []
+                    ctx = None
+                    continue
+                m = _re.match(r"^no interface (\S+)$", line, _re.IGNORECASE)
+                if m:
+                    self.interfaces.pop(m.group(1), None)
+                    ctx = None
+                    continue
+                m = _re.match(r"^interface (\S+)$", line, _re.IGNORECASE)
+                if m:
+                    ctx = ("interface", m.group(1))
+                    self.interfaces.setdefault(m.group(1), [])
+                    continue
+                m = _re.match(r"^no vlan (\d+)$", line, _re.IGNORECASE)
+                if m:
+                    self.vlans.pop(m.group(1), None)
+                    ctx = None
+                    continue
+                m = _re.match(r"^vlan (\d+)$", line, _re.IGNORECASE)
+                if m:
+                    ctx = ("vlan", m.group(1))
+                    self.vlans.setdefault(m.group(1), None)
+                    continue
+                if line == "exit":
+                    ctx = None
+                    continue
+                if ctx and ctx[0] == "interface":
+                    self.interfaces[ctx[1]].append(line)
+                    continue
+                if ctx and ctx[0] == "vlan":
+                    vm = _re.match(r"^name (\S+)$", line, _re.IGNORECASE)
+                    if vm:
+                        self.vlans[ctx[1]] = vm.group(1)
+                    continue
+                # Global-scope line.
+                nm = _re.match(r"^no (.+)$", line)
+                if nm and nm.group(1) in self.global_lines:
+                    self.global_lines.remove(nm.group(1))
+                else:
+                    self.global_lines.append(line)
+
+        def send_command(self, cmd, read_timeout=30):
+            if "show running-config" in cmd:
+                return self.render_running_config()
+            return ""
+
+        def send_config_set(self, cmds, read_timeout=120):
+            self.send_config_set_calls += 1
+            is_deploy_call = self.send_config_set_calls == 1
+
+            if is_deploy_call:
+                if self.fail_deploy:
+                    # Realistic: IOS applies valid lines and only errors on the
+                    # bad one, so state still moves even though it reports a
+                    # rejection - this is what makes rollback meaningful to test.
+                    self._apply(cmds)
+                    return "% Invalid input detected at '^' marker."
+                self._apply(cmds)
+                return "OK"
+
+            # Rollback call.
+            if self.fail_rollback_commands:
+                raise RuntimeError("Simulated SSH transport failure while sending rollback commands.")
+            if not self.rollback_executes_but_does_not_restore:
+                self._apply(cmds)
+            return "OK"
+
+        def save_config(self, cmd=None):
+            return "OK"
+
+        def disconnect(self):
+            pass
+
+    # TEST 3: Interface description change fails -> rollback executes -> device
+    # re-verified live -> original description genuinely restored.
+    device3 = StatefulMockDevice(
+        interfaces={"GigabitEthernet0/1": ["shutdown", "negotiation auto"]},
+        fail_deploy=True,
+    )
+    connector3 = DeviceConnector(connection_factory=lambda **kw: device3)
+    res3 = connector3.deploy(
+        "SW1_gns3",
+        {"host": "10.10.20.2"},
+        "interface GigabitEthernet0/1\ndescription NEW_DESCRIPTION\nno shutdown\nexit",
+    )
+    test3_pass = (
+        res3.state == DeviceLifecycleState.ROLLBACK_SUCCESSFUL.value
+        and res3.rollback_status == "SUCCESSFUL"
+        and res3.verification_status == "PASSED"
+        and "NEW_DESCRIPTION" not in device3.render_running_config()
+    )
+
+    # TEST 4: Rollback commands themselves fail to send (transport error) ->
+    # must report ROLLBACK_FAILED, never a fabricated success.
+    device4 = StatefulMockDevice(
+        interfaces={"GigabitEthernet0/1": ["shutdown", "negotiation auto"]},
+        fail_deploy=True,
+        fail_rollback_commands=True,
+    )
+    connector4 = DeviceConnector(connection_factory=lambda **kw: device4)
+    res4 = connector4.deploy(
+        "SW1_gns3",
+        {"host": "10.10.20.2"},
+        "interface GigabitEthernet0/1\ndescription NEW_DESCRIPTION\nno shutdown\nexit",
+    )
+    test4_pass = res4.state == DeviceLifecycleState.ROLLBACK_FAILED.value and res4.rollback_status == "FAILED"
+
+    # TEST 5 (most important): rollback commands are sent and the device
+    # returns "OK" with no error, but the configuration was NOT actually
+    # restored (e.g. a no-op on this platform/command). Verification must
+    # catch this and report ROLLBACK_FAILED - this is exactly the false-
+    # success scenario the previous implementation could not detect.
+    device5 = StatefulMockDevice(
+        interfaces={"GigabitEthernet0/1": ["shutdown", "negotiation auto"]},
+        fail_deploy=True,
+        rollback_executes_but_does_not_restore=True,
+    )
+    connector5 = DeviceConnector(connection_factory=lambda **kw: device5)
+    res5 = connector5.deploy(
+        "SW1_gns3",
+        {"host": "10.10.20.2"},
+        "interface GigabitEthernet0/1\ndescription NEW_DESCRIPTION\nno shutdown\nexit",
+    )
+    test5_pass = (
+        res5.state == DeviceLifecycleState.ROLLBACK_FAILED.value
+        and res5.rollback_status == "FAILED"
+        and res5.verification_status == "FAILED"
+        and "NEW_DESCRIPTION" in device5.render_running_config()  # confirms it genuinely was NOT restored
+    )
+
+    # TEST 6: VLAN creation fails -> rollback removes the newly-created VLAN ->
+    # verified absent (mirrors the platform's own required Example 1).
+    device6 = StatefulMockDevice(vlans={}, fail_deploy=True)
+    connector6 = DeviceConnector(connection_factory=lambda **kw: device6)
+    res6 = connector6.deploy(
+        "SW1_gns3",
+        {"host": "10.10.20.2"},
+        "vlan 100\nname NEWVLAN\nexit",
+    )
+    test6_pass = (
+        res6.state == DeviceLifecycleState.ROLLBACK_SUCCESSFUL.value
+        and res6.rollback_status == "SUCCESSFUL"
+        and "100" not in device6.vlans
+    )
 
     tests = [
         ("TEST 1: Fully compliant device -> 0 commands sent (ALREADY_COMPLIANT)", test1_pass),
         ("TEST 2: Selective deployment -> only missing command sent (1 command)", test2_pass),
-        ("TEST 3: CLI Error detection -> triggers safe rollback (ROLLBACK_SUCCESSFUL)", test3_pass),
+        ("TEST 3: Deployment fails -> rollback executes -> live-verified restored (ROLLBACK_SUCCESSFUL)", test3_pass),
+        ("TEST 4: Rollback command transport failure -> ROLLBACK_FAILED (no fake success)", test4_pass),
+        ("TEST 5: Rollback 'succeeds' but device state not restored -> verification catches it (ROLLBACK_FAILED)", test5_pass),
+        ("TEST 6: VLAN creation rolled back -> VLAN verified absent (ROLLBACK_SUCCESSFUL)", test6_pass),
     ]
 
     passed = 0
@@ -619,6 +825,136 @@ def run_phase43_orchestration_tests():
 
     print("\n[CI RESULT: PASSED] Layer 6 Phase 4.3 CD Pipeline tests completed successfully.")
     return True
+
+
+def _run_function_style_test_module(layer_number, title, test_functions):
+    """
+    Shared runner for the plain-function test modules in this project
+    (observability/tests/test_matrix_validation.py, servicenow/tests/
+    test_maintenance_mode.py, servicenow/tests/test_failure_handling.py,
+    deployment/tests/test_rollback_manager.py, tests/test_security_sanity.py).
+    Each module exposes an ALL_TESTS list of zero-argument functions that
+    raise AssertionError on failure - this just runs them uniformly and
+    reports pass/fail the same way every other layer does.
+    """
+    print("\n=================================================================")
+    print(f"Task: Layer {layer_number} - {title}\n")
+
+    passed, failed = 0, 0
+    for test in test_functions:
+        try:
+            test()
+            print(f"  [PASS] {test.__name__}")
+            passed += 1
+        except AssertionError as e:
+            print(f"  [FAIL] {test.__name__}: {e}")
+            failed += 1
+        except Exception as e:
+            print(f"  [FAIL] {test.__name__}: unexpected error - {e}")
+            failed += 1
+
+    print("\n-----------------------------------------------------------------")
+    print(f"Layer {layer_number} Summary: {passed} Passed | {failed} Failed")
+    print("-----------------------------------------------------------------")
+
+    if failed > 0:
+        print(f"\n[CI RESULT: FAILED] Layer {layer_number} ({title}) failed.")
+        return False
+
+    print(f"\n[CI RESULT: PASSED] Layer {layer_number} ({title}) completed successfully.")
+    return True
+
+
+def run_observability_matrix_tests():
+    """Layer 7: Observability configuration matrix validation (Prometheus,
+    Alertmanager, SNMP exporter template, Loki/Grafana/docker-compose wiring)."""
+    from observability.tests.test_matrix_validation import ALL_TESTS as _tests
+    return _run_function_style_test_module(7, "Observability Configuration Matrix Validation", _tests)
+
+
+def run_servicenow_integration_tests():
+    """Layer 8: ServiceNow payload/dedup/lifecycle unit tests (previously
+    written but never wired into CI - see docs/CI_TEST_COVERAGE_REPORT.md)."""
+    import unittest
+    from servicenow.tests.test_servicenow_integration import TestServiceNowIntegration
+
+    print("\n=================================================================")
+    print("Task: Layer 8 - ServiceNow Payload, Dedup & Lifecycle Tests\n")
+
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromTestCase(TestServiceNowIntegration)
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+
+    ok = result.wasSuccessful()
+    status = "PASSED" if ok else "FAILED"
+    print(f"\n[CI RESULT: {status}] Layer 8 (ServiceNow Integration) {'completed successfully' if ok else 'failed'}.")
+    return ok
+
+
+def run_maintenance_mode_tests():
+    """Layer 9: Maintenance Mode / Monitoring Suppression unit tests."""
+    from servicenow.tests.test_maintenance_mode import ALL_TESTS as _tests
+    return _run_function_style_test_module(9, "Maintenance Mode Unit Tests", _tests)
+
+
+def run_rollback_manager_tests():
+    """Layer 10: Rollback decision-logic unit tests (verification-gated
+    success/failure), complementing Layer 6's DeviceConnector-level tests."""
+    from deployment.tests.test_rollback_manager import ALL_TESTS as _tests
+    return _run_function_style_test_module(10, "Rollback Manager Unit Tests", _tests)
+
+
+def run_servicenow_failure_handling_tests():
+    """Layer 11: ServiceNow API failure-handling tests (401/500/timeout/
+    connection failure). Also documents, via test assertions rather than
+    prose, that no automatic/scheduled retry mechanism exists today."""
+    from servicenow.tests.test_failure_handling import ALL_TESTS as _tests
+    return _run_function_style_test_module(11, "ServiceNow API Failure Handling Tests", _tests)
+
+
+def run_security_sanity_checks():
+    """Layer 12: Lightweight security sanity checks (see tests/
+    test_security_sanity.py's module docstring for explicit scope/limits)."""
+    from tests.test_security_sanity import ALL_TESTS as _tests
+    return _run_function_style_test_module(12, "Security Sanity Checks (limited scope - see module docstring)", _tests)
+
+
+def run_artifact_manager_tests():
+    """Layer 13: Phase 0 Artifact Foundation unit tests (manifest.json
+    write/verify: deployable-set hashing, batch_hash, tamper/missing-file
+    detection, excluded-device recording, GITHUB_SHA precedence)."""
+    from deployment.tests.test_artifact_manager import ALL_TESTS as _tests
+    return _run_function_style_test_module(13, "Artifact Manager (Manifest) Unit Tests", _tests)
+
+
+def run_artifact_deployment_tests():
+    """Layer 14: Phase 1 Exact Artifact Deployment unit tests (--use-artifact-dir:
+    manifest re-verification gates SSH, device-identity re-query by device_id
+    blocks mismatches without device substitution, ContextBuilder/ConfigGenerator/
+    PreDeploymentValidator are never invoked, and --dry-run never connects)."""
+    from deployment.tests.test_artifact_deployment import ALL_TESTS as _tests
+    return _run_function_style_test_module(14, "Artifact Deployment (Phase 1) Unit Tests", _tests)
+
+
+def run_verdict_classification_tests():
+    """Layer 15: Phase 2 Post-Deployment Verdict Standardization unit tests.
+    post_deployment_validation owns COMPLIANT/DRIFT/UNREACHABLE/FAILED
+    classification; SSHCollector distinguishes real connectivity failures
+    (UNREACHABLE) from unrelated bugs (FAILED); the verdict passes through
+    deployment/main.py and both CLIs' exit codes verbatim, never collapsed."""
+    from post_deployment_validation.tests.test_verdict_classification import ALL_TESTS as _tests
+    return _run_function_style_test_module(15, "Post-Deployment Verdict Classification (Phase 2) Unit Tests", _tests)
+
+
+def run_cd_plan_safety_tests():
+    """Layer 16: Phase 3 CD Plan Workflow safety unit tests. Proves the normal
+    (non-artifact) --dry-run planning path .github/workflows/cd-plan.yml drives
+    still runs ContextBuilder/ConfigGenerator/PreDeploymentValidator and still
+    writes a Phase 0 artifact, but never calls DeviceConnector.deploy() (zero
+    SSH/Netmiko) and never triggers the CSV->NetBox SoT sync."""
+    from deployment.tests.test_cd_plan_safety import ALL_TESTS as _tests
+    return _run_function_style_test_module(16, "CD Plan Workflow Safety (Phase 3) Unit Tests", _tests)
 
 
 def main():
@@ -647,8 +983,48 @@ def main():
     if not p43_ok:
         sys.exit(1)
 
+    observability_ok = run_observability_matrix_tests()
+    if not observability_ok:
+        sys.exit(1)
+
+    servicenow_ok = run_servicenow_integration_tests()
+    if not servicenow_ok:
+        sys.exit(1)
+
+    maintenance_ok = run_maintenance_mode_tests()
+    if not maintenance_ok:
+        sys.exit(1)
+
+    rollback_manager_ok = run_rollback_manager_tests()
+    if not rollback_manager_ok:
+        sys.exit(1)
+
+    servicenow_failure_ok = run_servicenow_failure_handling_tests()
+    if not servicenow_failure_ok:
+        sys.exit(1)
+
+    security_ok = run_security_sanity_checks()
+    if not security_ok:
+        sys.exit(1)
+
+    artifact_manager_ok = run_artifact_manager_tests()
+    if not artifact_manager_ok:
+        sys.exit(1)
+
+    artifact_deployment_ok = run_artifact_deployment_tests()
+    if not artifact_deployment_ok:
+        sys.exit(1)
+
+    verdict_classification_ok = run_verdict_classification_tests()
+    if not verdict_classification_ok:
+        sys.exit(1)
+
+    cd_plan_safety_ok = run_cd_plan_safety_tests()
+    if not cd_plan_safety_ok:
+        sys.exit(1)
+
     print("\n=================================================================")
-    print(" [SUCCESS] ALL CI VALIDATION CHECKS PASSED (LAYERS 1, 2, 3, 4, 5 & 6)")
+    print(" [SUCCESS] ALL CI VALIDATION CHECKS PASSED (LAYERS 1-16)")
     print("=================================================================")
     sys.exit(0)
 

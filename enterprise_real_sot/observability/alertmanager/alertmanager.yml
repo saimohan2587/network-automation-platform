@@ -1,0 +1,78 @@
+# ==============================================================================
+# ABC Telecom Network Automation Platform - Alertmanager Configuration
+# ==============================================================================
+# Purpose: Define alert routing, site/device grouping, deduplication intervals,
+#          and alert inhibition rules for Network Team operations.
+# Specification: Prometheus Alertmanager (Phase 3 Production-Grade)
+# ==============================================================================
+
+global:
+  resolve_timeout: 5m
+
+# ------------------------------------------------------------------------------
+# Alert Grouping & Deduplication Routing Tree
+# ------------------------------------------------------------------------------
+route:
+  group_by: ['site', 'device_name', 'severity']
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 4h
+  receiver: 'network_team_default'
+
+  routes:
+    - matchers:
+        - severity = "CRITICAL"
+      receiver: 'network_team_critical'
+
+    - matchers:
+        - severity = "HIGH"
+      receiver: 'network_team_high'
+
+    - matchers:
+        - severity = "WARNING"
+      receiver: 'network_team_warning'
+
+# ------------------------------------------------------------------------------
+# Production Inhibition Rules (Cascading Failure Suppression)
+# ------------------------------------------------------------------------------
+inhibit_rules:
+  # Rule 1: When a Network Device is DOWN (CRITICAL), suppress all child alerts for that device
+  - source_matchers:
+      - alertname = "NetworkDeviceDown"
+      - severity = "CRITICAL"
+    target_matchers:
+      - alertname =~ "InterfaceDown|HighCpuUtilization|HighMemoryUtilization|HighInterfaceErrors|LinkFlapping"
+    equal: ['device_name']
+
+  # Rule 2: When a CRITICAL alert fires at a Site, suppress site-wide WARNING alerts
+  - source_matchers:
+      - severity = "CRITICAL"
+    target_matchers:
+      - severity = "WARNING"
+    equal: ['site']
+
+# ------------------------------------------------------------------------------
+# Operational Receivers with ServiceNow Webhook Routing
+# ------------------------------------------------------------------------------
+receivers:
+  - name: 'network_team_default'
+    webhook_configs:
+      - url: 'http://servicenow_adapter:8000/webhook'
+        send_resolved: true
+
+  - name: 'network_team_critical'
+    webhook_configs:
+      - url: 'http://servicenow_adapter:8000/webhook'
+        send_resolved: true
+
+  - name: 'network_team_high'
+    webhook_configs:
+      - url: 'http://servicenow_adapter:8000/webhook'
+        send_resolved: true
+
+  - name: 'network_team_warning'
+    webhook_configs:
+      - url: 'http://servicenow_adapter:8000/webhook'
+        send_resolved: true
+
+

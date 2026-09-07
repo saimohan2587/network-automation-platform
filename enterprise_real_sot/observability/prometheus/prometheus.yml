@@ -1,0 +1,64 @@
+# ==============================================================================
+# Prometheus Main Configuration - Network Automation Observability
+# Specification: Phase 4 Production Scale & Hardening (1000+ Devices Ready)
+# ==============================================================================
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 25s
+  evaluation_interval: 30s
+
+rule_files:
+  - "/etc/prometheus/alerts/alert_rules.yaml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "host.docker.internal:9093"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "snmp_devices"
+    metrics_path: "/snmp"
+    params:
+      module: ["cisco_ios"]
+      auth: ["public_v2"]
+    static_configs:
+      - targets:
+          - "10.10.10.2"
+        labels:
+          device_name: "R1_gns3"
+          site: "hyderabad"
+          device_role: "router"
+          vendor_os: "cisco_ios"
+      - targets:
+          - "10.10.20.2"
+        labels:
+          device_name: "SW1_gns3"
+          site: "hyderabad"
+          device_role: "access"
+          vendor_os: "cisco_ios"
+      - targets:
+          - "10.10.30.2"
+        labels:
+          device_name: "SW2_gns3"
+          site: "hyderabad"
+          device_role: "access"
+          vendor_os: "cisco_ios"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "host.docker.internal:9116"
+    metric_relabel_configs:
+      # Filter high-cardinality non-essential interface metrics at scale
+      - source_labels: [__name__]
+        regex: "(ifInUnknownProtos|ifOutQLen|ifSpecific)"
+        action: drop
+

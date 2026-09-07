@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from datetime import datetime
 
 from post_deployment_validation.artifact_manager import ArtifactManager
+from post_deployment_validation.collectors.base_collector import DeviceUnreachableError
 from post_deployment_validation.collectors.factory import CollectorFactory
 from post_deployment_validation.comparator import StateComparator
 from post_deployment_validation.logger import get_logger
@@ -84,16 +85,26 @@ class ComplianceOrchestrator:
         device_results: List[DeviceComplianceResult] = []
         compliant_count = 0
         drifted_count = 0
+        unreachable_count = 0
         failed_count = 0
 
         for device in selected_devices:
             result = self._evaluate_device(device, request)
             device_results.append(result)
 
+            site = str(device.get("site", {}).get("slug", "hyderabad")) if isinstance(device.get("site"), dict) else "hyderabad"
+            role = str(device.get("device_role", {}).get("slug", "access")) if isinstance(device.get("device_role"), dict) else "access"
+            dev_name = str(device.get("name", "unknown"))
+
+            # Sole verdict classification point (mirrors DeviceComplianceResult.overall_status):
+            # COMPLIANT / DRIFT / UNREACHABLE / FAILED. Nothing outside this package
+            # re-derives or renames this classification.
             if result.overall_status == "COMPLIANT":
                 compliant_count += 1
             elif result.overall_status == "DRIFT":
                 drifted_count += 1
+            elif result.overall_status == "UNREACHABLE":
+                unreachable_count += 1
             else:
                 failed_count += 1
 
@@ -121,6 +132,7 @@ class ComplianceOrchestrator:
             timestamp=timestamp_str,
             batch_name=batch_name,
             artifact_dir=artifact_dir,
+            unreachable_device_count=unreachable_count,
         )
 
         device_dicts = [dev.to_dict() for dev in device_results]
@@ -132,10 +144,11 @@ class ComplianceOrchestrator:
         )
 
         logger.info(
-            "Compliance evaluation finished: selected=%d compliant=%d drifted=%d failed=%d (Artifacts: %s)",
+            "Compliance evaluation finished: selected=%d compliant=%d drifted=%d unreachable=%d failed=%d (Artifacts: %s)",
             summary.selected_device_count,
             summary.compliant_device_count,
             summary.drifted_device_count,
+            summary.unreachable_device_count,
             summary.failed_device_count,
             artifact_dir,
         )
@@ -230,6 +243,19 @@ class ComplianceOrchestrator:
                 device_name=device_name,
                 ip_address=host_ip,
                 resource_results=resource_results,
+            )
+
+        except DeviceUnreachableError as error:
+            # The device could not be reached at all -- classify as UNREACHABLE,
+            # never the generic FAILED verdict (see DeviceComplianceResult.overall_status).
+            message = str(error)
+            logger.error("%s Device: '%s'.", message, device_name)
+            return DeviceComplianceResult(
+                device_name=device_name,
+                ip_address=host_ip,
+                resource_results=[],
+                error_message=message,
+                unreachable=True,
             )
 
         except Exception as error:

@@ -6,7 +6,7 @@ Calls Next: deployment/main.py (`DeploymentOrchestrator.run()`).
 
 import argparse
 import sys
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from deployment.logger import get_logger
 from deployment.main import DeploymentOrchestrator, DeploymentRequest, DeploymentSummary
@@ -28,14 +28,28 @@ Examples:
   python -m deployment.cli --devices sw-access-01,sw-access-02 --protocols port_security --dry-run
   python -m deployment.cli --devices site:hyderabad --protocols all --dry-run
   python -m deployment.cli --devices sw-access-01 --protocols port_security --save-config
+  python -m deployment.cli --use-artifact-dir artifacts/pre_deployment/<batch_id> --dry-run
+  python -m deployment.cli --use-artifact-dir artifacts/pre_deployment/<batch_id> --approved-by github-user --approval-ref run-12345
 """,
     )
-    # Define required --devices argument for selecting target switches
+    # Define --devices argument for selecting target switches (required unless --use-artifact-dir is given)
     parser.add_argument(
         "-d",
         "--devices",
-        required=True,
-        help="Target device(s) selection criteria. Accepts single name ('sw-access-01'), comma-separated names ('sw-access-01,sw-access-02'), or Key:Value NetBox filters ('site:hyderabad', 'role:access').",
+        default=None,
+        help="Target device(s) selection criteria. Accepts single name ('sw-access-01'), comma-separated names ('sw-access-01,sw-access-02'), or Key:Value NetBox filters ('site:hyderabad', 'role:access'). Mutually exclusive with --use-artifact-dir.",
+    )
+    # Phase 1 -- Exact Artifact Deployment: deploy the exact validated .cfg files
+    # from an existing Phase 0 artifact directory instead of selecting devices and
+    # regenerating configuration.
+    parser.add_argument(
+        "--use-artifact-dir",
+        default=None,
+        metavar="ARTIFACT_DIR",
+        help="Deploy the EXACT validated configuration from an existing artifact directory's manifest.json "
+        "(e.g. artifacts/pre_deployment/<batch_id>). Skips device selection, context building, configuration "
+        "generation, and pre-deployment validation entirely -- the artifact is authoritative. "
+        "Mutually exclusive with --devices.",
     )
     # Define optional --protocols argument (defaults to 'all')
     parser.add_argument(
@@ -68,10 +82,39 @@ Examples:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Simulate context building and configuration rendering without establishing SSH connections or modifying switches.",
+        help="Simulate context building and configuration rendering without establishing SSH connections or modifying switches. "
+        "In --use-artifact-dir mode: verify the artifact and perform read-only NetBox identity checks, but never connect over SSH.",
+    )
+    # Explicit opt-in for the Stage 0 CSV->NetBox Config Context sync. Never implicit,
+    # and never performed at all in --use-artifact-dir mode (a no-op there; warned below).
+    parser.add_argument(
+        "--sync-sot",
+        action="store_true",
+        help="Explicitly synchronize CSV Config Context intent into NetBox before deployment. Off by default. "
+        "Ignored (with a warning) when --use-artifact-dir is used.",
+    )
+    # Audit-only metadata (Phase 1 Step 7). Never bypasses validation or manifest verification.
+    parser.add_argument(
+        "--approved-by",
+        default=None,
+        metavar="IDENTITY",
+        help="Audit metadata: identity of the approver for this deployment run (e.g. a GitHub username). "
+        "Recorded on every deployment result; does not itself grant deployment permission.",
+    )
+    parser.add_argument(
+        "--approval-ref",
+        default=None,
+        metavar="REFERENCE",
+        help="Audit metadata: an approval reference (e.g. a GitHub Actions run URL or run ID). "
+        "Recorded on every deployment result; does not itself grant deployment permission.",
     )
     # Parse and return command line arguments namespace
-    return parser.parse_args(args)
+    parsed = parser.parse_args(args)
+    if not parsed.use_artifact_dir and not parsed.devices:
+        parser.error("one of --devices or --use-artifact-dir is required.")
+    if parsed.use_artifact_dir and parsed.devices:
+        parser.error("--devices and --use-artifact-dir are mutually exclusive.")
+    return parsed
 
 
 def parse_selection_criteria(devices_input: str) -> Dict[str, Any]:
@@ -213,6 +256,52 @@ def print_execution_results(summary: DeploymentSummary, dry_run: bool) -> None:
     print("=================================================================\n")
 
 
+# Phase 2 -- the exact post_deployment_validation verdict strings that must make
+# the CLI exit non-zero even when SSH configuration push itself succeeded. This
+# is the ONLY place deployment/cli.py inspects the verdict: it never renames or
+# reclassifies it, only converts the already-classified string into an exit code.
+_FAILING_VERIFICATION_VERDICTS = {"DRIFT", "UNREACHABLE", "FAILED"}
+
+
+def _exit_code_for(summary: DeploymentSummary) -> int:
+    """Compute the final process exit code.
+
+    0 only when every device deployed successfully AND (if post-deployment
+    verification ran) every device's verdict was COMPLIANT. A device whose
+    config was pushed successfully but which then came back DRIFT,
+    UNREACHABLE, or FAILED from post_deployment_validation must still make
+    the overall CD result non-zero -- config push success alone is not
+    deployment success.
+    """
+    if summary.failed_device_count != 0:
+        return 1
+    verification_failed = any(
+        getattr(result, "verification_status", None) in _FAILING_VERIFICATION_VERDICTS
+        for result in summary.results
+    )
+    return 1 if verification_failed else 0
+
+
+def print_artifact_preflight_summary(
+    artifact_dir: str,
+    save_config: bool,
+    dry_run: bool,
+    sync_sot_requested: bool,
+    approved_by: Optional[str],
+    approval_ref: Optional[str],
+) -> None:
+    """Display pre-flight summary for Phase 1 --use-artifact-dir deployment mode."""
+    print("\n========== ARTIFACT DEPLOYMENT MODE (Phase 1 -- Exact Artifact) ==========")
+    print(f"  Artifact Directory        : {artifact_dir}")
+    print("  Configuration Source      : EXACT .cfg files from manifest.json (never regenerated)")
+    print(f"  Save Configuration        : {'YES' if save_config else 'NO'}")
+    print(f"  Dry-Run Mode              : {'YES (Safety Mode — No SSH)' if dry_run else 'NO (Live Execution)'}")
+    if sync_sot_requested:
+        print("  SoT Sync                  : IGNORED (--sync-sot has no effect in --use-artifact-dir mode)")
+    print(f"  Approved By               : {approved_by or 'Not specified'}")
+    print(f"  Approval Reference        : {approval_ref or 'Not specified'}")
+    print("============================================================================\n")
+
 
 def main(raw_args: Sequence[str] = None) -> int:
     """CLI execution entry point."""
@@ -222,6 +311,40 @@ def main(raw_args: Sequence[str] = None) -> int:
 
     # Parse raw arguments into structured namespace
     args = parse_args(raw_args)
+
+    if args.use_artifact_dir:
+        # Phase 1 -- Exact Artifact Deployment. Never selects devices, never
+        # builds context, never regenerates configuration, never re-validates.
+        print_artifact_preflight_summary(
+            artifact_dir=args.use_artifact_dir,
+            save_config=args.save_config,
+            dry_run=args.dry_run,
+            sync_sot_requested=args.sync_sot,
+            approved_by=args.approved_by,
+            approval_ref=args.approval_ref,
+        )
+
+        request = DeploymentRequest(
+            selection_criteria={},
+            connection_details=None,
+            save_config=args.save_config,
+            dry_run=args.dry_run,
+            artifact_dir=args.use_artifact_dir,
+            sync_sot=False,  # never implicit or explicit in artifact mode -- see docstring above
+            approved_by=args.approved_by,
+            approval_ref=args.approval_ref,
+        )
+
+        orchestrator = DeploymentOrchestrator()
+        summary = orchestrator.run(request)
+
+        print_execution_results(summary, dry_run=args.dry_run)
+
+        if summary.error_message:
+            print(f"\nArtifact deployment blocked: {summary.error_message}\n")
+            return 1
+
+        return _exit_code_for(summary)
 
     # Parse device selection criteria, protocol list, interface list, and excluded interfaces
     selection_criteria = parse_selection_criteria(args.devices)
@@ -248,6 +371,9 @@ def main(raw_args: Sequence[str] = None) -> int:
         excluded_interfaces=excluded_interfaces,
         save_config=args.save_config,
         dry_run=args.dry_run,
+        sync_sot=args.sync_sot,
+        approved_by=args.approved_by,
+        approval_ref=args.approval_ref,
     )
 
     # Instantiate deployment orchestrator and execute request
@@ -257,8 +383,9 @@ def main(raw_args: Sequence[str] = None) -> int:
     # Display final execution results report
     print_execution_results(summary, dry_run=args.dry_run)
 
-    # Return exit code 0 for success, 1 for failures
-    return 0 if summary.failed_device_count == 0 else 1
+    # Return exit code 0 only if deployment succeeded AND (if it ran) post-deployment
+    # verification verdict was COMPLIANT for every device -- see _exit_code_for().
+    return _exit_code_for(summary)
 
 
 if __name__ == "__main__":

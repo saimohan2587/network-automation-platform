@@ -1,0 +1,8 @@
+{
+  "device_name": "sw-access-03",
+  "ip_address": "192.168.1.4",
+  "overall_status": "FAILED",
+  "error_message": "Compliance evaluation failed: SSH data collection failed for 'sw-access-03': TCP connection to device failed.\n\nCommon causes of this problem are:\n1. Incorrect hostname or IP address.\n2. Wrong TCP port.\n3. Intermediate firewall blocking access.\n\nDevice settings: cisco_ios 192.168.1.4:22\n\n",
+  "total_drifts": 0,
+  "drifts": []
+}

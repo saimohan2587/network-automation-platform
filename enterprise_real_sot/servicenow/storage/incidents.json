@@ -1,0 +1,38 @@
+{
+  "incidents": {
+    "live_sw1_pdi_test_001": {
+      "sys_id": "pending_retry",
+      "incident_number": "INC_RETRY_0100101",
+      "fingerprint": "live_sw1_pdi_test_001",
+      "device_name": "SW1_gns3",
+      "alert_name": "NetworkDeviceDown",
+      "severity": "CRITICAL",
+      "state": "Pending_API_Retry",
+      "first_detected": "2026-09-03T22:22:00Z",
+      "last_updated": "2026-09-03T22:22:28Z",
+      "updates_count": 1
+    },
+    "live_sw1_pdi_test_002": {
+      "sys_id": "81141d2e3bcf07503d68cdd643e45aa1",
+      "incident_number": "INC0010005",
+      "fingerprint": "live_sw1_pdi_test_002",
+      "device_name": "SW1_gns3",
+      "management_ip": "10.10.20.2",
+      "site": "hyderabad",
+      "alert_name": "NetworkDeviceDown",
+      "severity": "CRITICAL",
+      "state": "Resolved",
+      "first_detected": "2026-09-03T22:23:00Z",
+      "last_updated": "2026-09-03T22:23:01Z",
+      "updates_count": 2,
+      "work_notes": [
+        "Incident created via ServiceNow Table API.",
+        "Repeated alert firing at 2026-09-03T22:22:58Z. Summary: [CRITICAL] SW1_gns3 is UNREACHABLE",
+        "Alert Auto-Resolved at 2026-09-03T22:23:01Z. Reason: Auto-Resolved by Monitoring"
+      ],
+      "resolution_reason": "Auto-Resolved by Monitoring",
+      "resolution_notes": "Telemetry metrics returned to normal operating baseline."
+    }
+  },
+  "counter": 100101
+}

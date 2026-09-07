@@ -51,11 +51,12 @@ class ArtifactManager:
             json.dump(summary_data, f, indent=2)
         written_files["summary.json"] = json_path
 
-        # 2. Write per-device <device_name>.json for drifted or failed devices (DRIFT ONLY)
+        # 2. Write per-device <device_name>.json for any non-COMPLIANT verdict
+        # (DRIFT, UNREACHABLE, or FAILED) -- COMPLIANT devices need no detail file.
         for dev in device_results:
             dev_name = dev.get("device_name", "unknown")
             dev_status = dev.get("overall_status")
-            if dev_status in ("DRIFT", "FAILED"):
+            if dev_status in ("DRIFT", "UNREACHABLE", "FAILED"):
                 # Filter out all PASS entries and build drift-only payload
                 drift_payload = self._build_drift_only_device_payload(dev)
                 dev_filename = f"{self._sanitize_filename(dev_name)}.json"

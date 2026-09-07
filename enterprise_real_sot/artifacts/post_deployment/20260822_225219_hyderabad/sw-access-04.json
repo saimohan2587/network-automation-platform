@@ -1,0 +1,8 @@
+{
+  "device_name": "sw-access-04",
+  "ip_address": "192.168.1.5",
+  "overall_status": "FAILED",
+  "error_message": "Compliance evaluation failed: SSH data collection failed for 'sw-access-04': Authentication to device failed.\n\nCommon causes of this problem are:\n1. Invalid username and password\n2. Incorrect SSH-key file\n3. Connecting to the wrong device\n\nDevice settings: cisco_ios 192.168.1.5:22\n\n\nAuthentication failed.",
+  "total_drifts": 0,
+  "drifts": []
+}

@@ -1,0 +1,139 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "Device Reachability (UP / DOWN)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "up{job=\"snmp_devices\"}",
+          "legendFormat": "{{device_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }
+          ]
+        }
+      }
+    },
+    {
+      "title": "Device System Uptime (Days)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "sysUpTime / 100 / 86400",
+          "legendFormat": "{{device_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d"
+        }
+      }
+    },
+    {
+      "title": "Device Hostname Inventory",
+      "type": "table",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "sysName",
+          "legendFormat": "{{device_name}}"
+        }
+      ]
+    },
+    {
+      "title": "Cisco CPU Utilization (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        {
+          "expr": "cisco_cpu_utilization_percent",
+          "legendFormat": "{{device_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth" },
+          "unit": "percent"
+        }
+      }
+    },
+    {
+      "title": "Cisco Memory Utilization (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 5 },
+      "targets": [
+        {
+          "expr": "cisco_memory_used_bytes / (cisco_memory_used_bytes + cisco_memory_free_bytes) * 100",
+          "legendFormat": "{{device_name}} (Used %)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth" },
+          "unit": "percent"
+        }
+      }
+    },
+    {
+      "title": "Interface Operational Status (1=UP, 2=DOWN)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 11 },
+      "targets": [
+        {
+          "expr": "ifOperStatus",
+          "legendFormat": "{{device_name}} - If {{ifIndex}}"
+        }
+      ]
+    },
+    {
+      "title": "Interface Packet Errors (In/Out Rate)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 11 },
+      "targets": [
+        {
+          "expr": "rate(ifInErrors[5m]) + rate(ifOutErrors[5m])",
+          "legendFormat": "{{device_name}} - If {{ifIndex}}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "name": "Loki"
+      },
+      "title": "Real-Time Cisco Syslog Events & Flaps Stream",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "name": "Loki"
+          },
+          "expr": "{job=\"syslog\"}"
+        }
+      ]
+    }
+
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["network", "gns3", "snmp", "syslog", "health"],
+  "time": { "from": "now-15m", "to": "now" },
+  "title": "Network Fleet Devices Dashboard",
+  "uid": "net-devices-dash"
+}
+

@@ -1,0 +1,68 @@
+# ==============================================================================
+# ABC Telecom Network Automation Platform - Network Observability Config
+# ==============================================================================
+# Purpose: Define global network device telemetry standards, correlation metadata schema,
+#          severity mapping rules, and Network Team operational routing.
+# ==============================================================================
+
+version: "1.0.0"
+environment: "enterprise_sot"
+
+# ------------------------------------------------------------------------------
+# Mandatory Correlation Metadata Schema (Required on Network Metrics & Logs)
+# ------------------------------------------------------------------------------
+correlation_schema:
+  required_fields:
+    - device_name        # Target network device hostname (e.g. SW1_gns3)
+    - site               # Physical/logical site location (e.g. hyderabad, gns3-staging)
+    - device_role        # Device function (e.g. access, distribution, core, router)
+    - vendor_os          # Operating system (e.g. cisco_ios, cisco_nxos)
+    - timestamp          # UTC timestamp (ISO-8601 format)
+
+# ------------------------------------------------------------------------------
+# Standardized Severity Classification & SLA Response Targets
+# ------------------------------------------------------------------------------
+severity_levels:
+  CRITICAL:
+    description: "Production-impacting network device reachability outage"
+    sla_response_time: "15 minutes"
+    notification_channels: ["pagerduty", "slack_critical_alerts"]
+  HIGH:
+    description: "Interface operational status down or link flapping detected"
+    sla_response_time: "1 hour"
+    notification_channels: ["slack_netops_alerts", "email_oncall"]
+  WARNING:
+    description: "Resource threshold warning (CPU >85%, Memory >90%, Interface Errors)"
+    sla_response_time: "4 hours"
+    notification_channels: ["slack_netops_warning"]
+  INFO:
+    description: "Normal operational lifecycle state transitions and device syslogs"
+    sla_response_time: "N/A"
+    notification_channels: ["telemetry_store"]
+
+# ------------------------------------------------------------------------------
+# Operational Ownership & Escalation Targets
+# ------------------------------------------------------------------------------
+ownership_matrix:
+  Network_Team:
+    role: "Network Operations & Engineering Team"
+    responsibilities: ["Device Reachability", "CPU & Memory Utilization", "Interface Status", "Link Flapping", "Packet Errors"]
+
+# ------------------------------------------------------------------------------
+# Network Device Scalability Policy
+# ------------------------------------------------------------------------------
+scalability_policy:
+  telemetry_ingestion_mode: "out_of_band" # Pull (Prometheus SNMP) for Metrics, UDP stream (Promtail/Loki) for Syslogs
+  high_cardinality_rules:
+    forbidden_metric_labels:
+      - "raw_cli_output"
+      - "error_stacktrace"
+      - "command_text"
+    allowed_metric_labels:
+      - "device_name"
+      - "site"
+      - "device_role"
+      - "status"
+      - "protocol"
+      - "interface_name"
+

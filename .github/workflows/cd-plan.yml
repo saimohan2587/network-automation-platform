@@ -1,0 +1,222 @@
+name: CD Plan (Phase 3 -- Plan Only, No Device Connections)
+
+# Manual trigger ONLY. Do not add workflow_run/push/schedule triggers here --
+# this workflow reads the CURRENTLY APPROVED NetBox SoT and must only ever run
+# when a human explicitly asks for a plan.
+"on":
+  workflow_dispatch:
+    inputs:
+      target:
+        description: >
+          Device selection criteria, in the exact format `deployment/cli.py --devices`
+          already accepts: a single device name ("sw-access-01"), a comma-separated
+          device name list, or a "key:value" NetBox filter ("site:gns3-staging",
+          "role:access"). Defaults to this project's GNS3 staging site.
+        required: false
+        default: "site:gns3-staging"
+      protocols:
+        description: Comma-separated protocol plugin names, or "all" (same as `deployment/cli.py --protocols`).
+        required: false
+        default: "all"
+      interfaces:
+        description: Comma-separated interface names, or "all" (same as `deployment/cli.py --interfaces`).
+        required: false
+        default: "all"
+
+permissions:
+  contents: read
+
+# Phase 3 does not deploy, so a deployment concurrency lock does not belong
+# here yet (see Phase 4). Deliberately omitted.
+
+jobs:
+  cd-plan:
+    name: Generate CD Plan Artifact
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: enterprise_real_sot
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # --------------------------------------------------------------------
+      # RUNNER / NETBOX CONNECTIVITY CONSTRAINT (Step 10 -- read before running):
+      # deployment/config.py resolves NETBOX_URL from the environment and falls
+      # back to http://localhost:8000/api/ (see .env.example) if unset. A
+      # GitHub-hosted `ubuntu-latest` runner has NO route to a NetBox instance
+      # running on a developer machine or an internal-only network -- that
+      # localhost default is unreachable from this runner. For this job to
+      # succeed, the NETBOX_URL secret must point to a NetBox instance this
+      # runner can actually reach (a public/VPN-reachable address), and
+      # NETBOX_TOKEN must be a valid API token for it. If NetBox is only
+      # reachable from your internal network, this workflow will correctly
+      # FAIL at device selection until a self-hosted runner is introduced
+      # (Phase 4) or NetBox is made reachable -- that failure is expected and
+      # must not be worked around by faking success here.
+      # --------------------------------------------------------------------
+      - name: "Generate CD Plan (--dry-run: zero SSH, zero device configuration changes)"
+        id: plan
+        # This step's own process exit code reflects deployment/cli.py's general
+        # "any device failed/was excluded" signal, which is coarser than what a
+        # PLAN needs (a batch with some devices legitimately excluded from THIS
+        # run, per Phase 0 design, is still a valid plan). The real pass/fail
+        # authority for this job is the "Fail If Plan Is Not Deployable" step
+        # below, which checks manifest.json's `deployable` field directly --
+        # exactly the condition Phase 3 must fail on. continue-on-error here
+        # only prevents that coarser signal from masking a legitimate partial
+        # plan; a hard failure (e.g. NetBox unreachable, zero devices selected)
+        # is still caught because no deployable artifact will exist at all.
+        continue-on-error: true
+        env:
+          NETBOX_URL: ${{ secrets.NETBOX_URL }}
+          NETBOX_TOKEN: ${{ secrets.NETBOX_TOKEN }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_SECRET: ${{ secrets.SSH_SECRET }}
+        run: |
+          set -o pipefail
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python -m deployment.cli \
+            --devices "${{ github.event.inputs.target }}" \
+            --protocols "${{ github.event.inputs.protocols }}" \
+            --interfaces "${{ github.event.inputs.interfaces }}" \
+            --dry-run \
+            --approved-by "${{ github.actor }}" \
+            --approval-ref "$RUN_URL" \
+            2>&1 | tee cd_plan_output.log
+          echo "cli_exit_code=$?" >> "$GITHUB_OUTPUT"
+        # NOTE: --sync-sot is intentionally NEVER passed here. Phase 3 reads the
+        # CURRENTLY APPROVED NetBox SoT as-is; it must not silently write CSV
+        # config-context data into NetBox before generating a plan.
+        # NOTE: --use-artifact-dir is intentionally NEVER passed here either --
+        # this job's job is to CREATE a fresh artifact, not replay an existing one.
+
+      - name: Locate Generated Artifact Directory
+        id: locate
+        if: ${{ !cancelled() }}
+        run: |
+          ARTIFACT_DIR=$(ls -td artifacts/pre_deployment/*/ 2>/dev/null | head -n 1)
+          if [ -z "$ARTIFACT_DIR" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ARTIFACT_DIR="${ARTIFACT_DIR%/}"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "artifact_dir=$ARTIFACT_DIR" >> "$GITHUB_OUTPUT"
+          echo "batch_id=$(basename "$ARTIFACT_DIR")" >> "$GITHUB_OUTPUT"
+
+      # Reads ONLY manifest.json's structured fields (device_id/device_name/
+      # config_file/reason, batch_id, git_commit_sha, deployable). Never reads
+      # or prints .cfg file contents, and manifest.json never contains
+      # passwords/secrets/credentials/SNMP communities (see Phase 0), so
+      # nothing sensitive can reach this summary.
+      - name: "Write Deployment Plan Summary"
+        id: summary
+        if: ${{ !cancelled() }}
+        env:
+          ARTIFACT_DIR: ${{ steps.locate.outputs.artifact_dir }}
+          ARTIFACT_FOUND: ${{ steps.locate.outputs.found }}
+          CLI_EXIT_CODE: ${{ steps.plan.outputs.cli_exit_code }}
+        run: |
+          python3 << 'PYEOF'
+          import json
+          import os
+          from pathlib import Path
+
+          lines = []
+          deployable = False
+          artifact_found = os.environ.get("ARTIFACT_FOUND") == "true"
+          cli_exit_code = os.environ.get("CLI_EXIT_CODE", "unknown")
+
+          if not artifact_found:
+              lines.append("## CD Plan -- FAILED\n")
+              lines.append(
+                  "No Phase 0 artifact directory was created "
+                  "(zero devices matched the selection criteria, or the plan "
+                  "failed before device selection completed -- e.g. NetBox was "
+                  "unreachable from this runner; see the step above for the exact error).\n"
+              )
+              lines.append(f"- **deployment/cli.py exit code**: `{cli_exit_code}`\n")
+          else:
+              artifact_dir = Path(os.environ["ARTIFACT_DIR"])
+              manifest_path = artifact_dir / "manifest.json"
+
+              if not manifest_path.exists():
+                  lines.append("## CD Plan -- FAILED\n")
+                  lines.append(f"`manifest.json` was not found in `{artifact_dir}`.\n")
+              else:
+                  manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                  deployable = bool(manifest.get("deployable", False))
+                  devices = manifest.get("devices", [])
+                  excluded = manifest.get("excluded_devices", [])
+                  batch_id = manifest.get("batch_id")
+
+                  lines.append(
+                      f"## CD Plan Summary -- {'READY FOR APPROVAL' if deployable else 'NOT DEPLOYABLE'}\n"
+                  )
+                  lines.append(f"- **Batch ID**: `{batch_id}`")
+                  lines.append(f"- **Git Commit SHA**: `{manifest.get('git_commit_sha')}`")
+                  lines.append(f"- **Artifact Name**: `pre_deployment_{batch_id}`")
+                  lines.append(f"- **Deployable**: `{deployable}`")
+                  lines.append(f"- **Deployable Device Count**: {len(devices)}")
+                  lines.append(f"- **Excluded Device Count**: {len(excluded)}")
+                  lines.append(f"- **deployment/cli.py exit code**: `{cli_exit_code}`\n")
+
+                  if devices:
+                      lines.append("### Deployable Devices\n")
+                      lines.append("| Device ID | Device Name | Config File |")
+                      lines.append("|---|---|---|")
+                      for d in devices:
+                          lines.append(f"| {d.get('device_id')} | {d.get('device_name')} | {d.get('config_file')} |")
+                      lines.append("")
+
+                  if excluded:
+                      lines.append("### Excluded Devices\n")
+                      lines.append("| Device ID | Device Name | Reason |")
+                      lines.append("|---|---|---|")
+                      for d in excluded:
+                          lines.append(f"| {d.get('device_id')} | {d.get('device_name')} | {d.get('reason')} |")
+                      lines.append("")
+
+          summary_text = "\n".join(lines) + "\n"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(summary_text)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"deployable={'true' if deployable else 'false'}\n")
+          PYEOF
+
+      # Only uploads when the manifest explicitly says deployable=true -- a
+      # non-deployable or missing artifact must never be published as if it
+      # were a valid deployment candidate for Phase 4 to consume.
+      - name: Upload Exact Deployment Artifact
+        if: ${{ !cancelled() && steps.summary.outputs.deployable == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre_deployment_${{ steps.locate.outputs.batch_id }}
+          path: enterprise_real_sot/${{ steps.locate.outputs.artifact_dir }}
+          if-no-files-found: error
+          retention-days: 90
+
+      # Authoritative pass/fail gate for this job (Step 9): a plan with zero
+      # deployable devices, or no artifact at all, must fail clearly and must
+      # never be reported as a successful plan.
+      - name: Fail If Plan Is Not Deployable
+        if: ${{ !cancelled() && steps.summary.outputs.deployable != 'true' }}
+        run: |
+          echo "CD Plan produced no deployable devices, or failed before an artifact could be created." >&2
+          echo "See the Job Summary above for the exact reason (excluded devices and their reasons, or a connectivity error)." >&2
+          exit 1

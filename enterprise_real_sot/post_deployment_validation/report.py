@@ -54,16 +54,35 @@ class ResourceComplianceResult:
 
 @dataclass(frozen=True)
 class DeviceComplianceResult:
-    """Aggregated evaluation outcome for a target network device."""
+    """Aggregated evaluation outcome for a target network device.
+
+    This is the single source of truth for the post-deployment verdict: one
+    of COMPLIANT / DRIFT / UNREACHABLE / FAILED (see `overall_status`). No
+    other module classifies these -- deployment/main.py and deployment/cli.py
+    only ever read `overall_status` verbatim and must never re-derive or
+    translate it.
+    """
 
     device_name: str
     ip_address: str
     resource_results: Sequence[ResourceComplianceResult]
     error_message: Optional[str] = None
+    # Set only when the device could not be reached at all for validation
+    # (see collectors.base_collector.DeviceUnreachableError) -- distinct from
+    # error_message alone, which also covers unrelated unexpected failures.
+    unreachable: bool = False
 
     @property
     def overall_status(self) -> str:
-        """Return 'DRIFT' if any resource drifted or an error occurred, else 'COMPLIANT'."""
+        """Classify this device's post-deployment verdict:
+
+        - UNREACHABLE : the device could not be reached for validation at all
+        - FAILED      : validation encountered another unexpected failure
+        - DRIFT       : the device was reached but actual state != expected state
+        - COMPLIANT   : the device was reached and actual state == expected state
+        """
+        if self.unreachable:
+            return "UNREACHABLE"
         if self.error_message:
             return "FAILED"
         for resource in self.resource_results:
@@ -78,6 +97,7 @@ class DeviceComplianceResult:
             "ip_address": self.ip_address,
             "overall_status": self.overall_status,
             "error_message": self.error_message,
+            "unreachable": self.unreachable,
             "resource_results": [r.to_dict() for r in self.resource_results],
         }
 
@@ -95,6 +115,7 @@ class ComplianceSummary:
     batch_name: str = ""
     artifact_dir: Optional[Path] = None
     written_artifacts: Optional[Dict[str, Path]] = None
+    unreachable_device_count: int = 0
 
     @property
     def total_drifts(self) -> int:
@@ -126,6 +147,7 @@ class ComplianceSummary:
             "checked_devices": self.selected_device_count,
             "compliant_devices": self.compliant_device_count,
             "drifted_devices": self.drifted_device_count,
+            "unreachable_devices": self.unreachable_device_count,
             "ssh_failed_devices": self.failed_device_count,
             "total_drifts": self.total_drifts,
             "drift_summary": self.drift_summary,
@@ -154,9 +176,11 @@ class ComplianceReporter:
         """Print concise CLI compliance evaluation summary."""
         print("\nPost-Deployment Validation Completed\n")
 
-        print(f"Devices Checked : {summary.selected_device_count}")
-        print(f"Drifted Devices : {summary.drifted_device_count}")
-        print(f"Total Drifts    : {summary.total_drifts}\n")
+        print(f"Devices Checked      : {summary.selected_device_count}")
+        print(f"Drifted Devices      : {summary.drifted_device_count}")
+        print(f"Unreachable Devices  : {summary.unreachable_device_count}")
+        print(f"Failed Devices       : {summary.failed_device_count}")
+        print(f"Total Drifts         : {summary.total_drifts}\n")
 
         if summary.artifact_dir:
             try:

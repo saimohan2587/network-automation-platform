@@ -1,0 +1,101 @@
+# ==============================================================================
+# ABC Telecom Network Automation Platform - Production Alerting Rules Definition
+# ==============================================================================
+# Purpose: Define network device alert triggers, PromQL expressions, threshold limits,
+#          severity tags, and Network Team ownership.
+# Specification: Prometheus Alertmanager Standard (Phase 3 Production-Grade)
+# ==============================================================================
+
+groups:
+  # ============================================================================
+  # NETWORK DEVICE HEALTH & INFRASTRUCTURE ALERTS
+  # ============================================================================
+  - name: network_device_health_alerts
+    rules:
+      # 1. DEVICE DOWN DETECTION
+      - alert: NetworkDeviceDown
+        expr: 'up{job="snmp_devices"} == 0'
+        for: 1m
+        labels:
+          severity: CRITICAL
+          owner: Network_Team
+          area: Network_Device_Health
+        annotations:
+          summary: "[CRITICAL] Network Device {{ $labels.device_name }} is UNREACHABLE"
+          description: "Device {{ $labels.device_name }} (IP: {{ $labels.instance }}) at site {{ $labels.site }} (Role: {{ $labels.device_role }}) is unreachable via ICMP/SNMP poll."
+          problem: "Complete node reachability failure / Out-of-service state"
+          action: "1. Access out-of-band management console.\n2. Verify device power and supervisor module status.\n3. Check upstream link interface status."
+
+      # 2. HIGH CPU DETECTION
+      - alert: HighCpuUtilization
+        expr: 'cisco_cpu_utilization_percent > 85'
+        for: 2m
+        labels:
+          severity: WARNING
+          owner: Network_Team
+          area: Network_Device_Health
+        annotations:
+          summary: "[WARNING] High CPU load on {{ $labels.device_name }} ({{ $value }}%)"
+          description: "CPU utilization on {{ $labels.device_name }} (IP: {{ $labels.instance }}) at site {{ $labels.site }} is {{ $value }}% (threshold > 85%)."
+          problem: "Control-plane CPU exhaustion"
+          action: "1. SSH into {{ $labels.device_name }}.\n2. Execute 'show process cpu sorted' to identify high CPU process.\n3. Inspect control plane logging."
+
+      # 3. HIGH MEMORY DETECTION
+      - alert: HighMemoryUtilization
+        expr: '(cisco_memory_used_bytes / (cisco_memory_used_bytes + cisco_memory_free_bytes) * 100) > 90'
+        for: 2m
+        labels:
+          severity: WARNING
+          owner: Network_Team
+          area: Network_Device_Health
+        annotations:
+          summary: "[WARNING] High RAM Memory utilization on {{ $labels.device_name }} ({{ $value }}%)"
+          description: "Memory utilization on {{ $labels.device_name }} (IP: {{ $labels.instance }}) at site {{ $labels.site }} is {{ $value }}% (threshold > 90%)."
+          problem: "System memory pool depletion / buffer exhaustion"
+          action: "1. Execute 'show memory statistics' and 'show processes memory'.\n2. Check for memory leak in BGP/OSPF processes."
+
+      # 4. INTERFACE DOWN DETECTION
+      - alert: InterfaceDown
+        expr: 'ifOperStatus == 2 and ifAdminStatus == 1'
+        for: 1m
+
+        labels:
+          severity: HIGH
+          owner: Network_Team
+          area: Network_Device_Health
+        annotations:
+          summary: "[HIGH] Interface {{ $labels.ifIndex }} on {{ $labels.device_name }} is DOWN"
+          description: "Interface {{ $labels.ifIndex }} on {{ $labels.device_name }} (IP: {{ $labels.instance }}) at site {{ $labels.site }} is operationally DOWN (ifOperStatus=2)."
+          problem: "Physical link layer / transceiver connection failure"
+          action: "1. Check physical cabling and SFP transceiver status.\n2. Run 'show interface' and 'show interface status'.\n3. Verify remote peer interface state."
+
+      # 5. INTERFACE ERROR DETECTION
+      - alert: HighInterfaceErrors
+        expr: '(rate(ifInErrors[5m]) + rate(ifOutErrors[5m])) > 10'
+        for: 3m
+        labels:
+          severity: WARNING
+          owner: Network_Team
+          area: Network_Device_Health
+        annotations:
+          summary: "[WARNING] High interface error rate on {{ $labels.device_name }} Interface {{ $labels.ifIndex }}"
+          description: "Interface {{ $labels.ifIndex }} on {{ $labels.device_name }} (site {{ $labels.site }}) is experiencing {{ $value }} packet errors/sec over 5 minutes."
+          problem: "Physical layer degradation / CRC error accumulation / Duplex mismatch"
+          action: "1. Run 'show interface' to inspect CRC, frame, and collision counters.\n2. Verify speed/duplex negotiation settings.\n3. Check optical light levels."
+
+      # 6. LINK FLAP DETECTION
+      - alert: LinkFlapping
+        expr: 'changes(ifOperStatus[5m]) >= 4'
+        for: 0m
+        labels:
+          severity: HIGH
+          owner: Network_Team
+          area: Network_Device_Health
+        annotations:
+          summary: "[HIGH] Link Flapping detected on {{ $labels.device_name }} Interface {{ $labels.ifIndex }}"
+          description: "Interface {{ $labels.ifIndex }} on {{ $labels.device_name }} at site {{ $labels.site }} flapped state {{ $value }} times in 5 minutes."
+          problem: "Intermittent physical layer instability / flapping link"
+          action: "1. Check for loose cabling or faulty optic transceivers.\n2. Consider placing interface in err-disable state or activating flap-dampening."
+
+
+

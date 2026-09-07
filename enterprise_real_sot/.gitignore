@@ -12,6 +12,10 @@ __pycache__/
 *.key
 *.crt
 
+# Rendered from observability/snmp_exporter/snmp.yml.template + .env's
+# SNMP_COMMUNITY - contains the real community string, unlike the template.
+observability/snmp_exporter/snmp.yml
+
 # Virtual Environments
 .venv/
 venv/

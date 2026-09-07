@@ -11,6 +11,7 @@ from typing import Any, Callable, List, Mapping, Optional
 
 from deployment.lifecycle import DeviceLifecycleState
 from deployment.logger import get_logger
+from deployment.rollback_manager import execute_and_verify_rollback
 
 
 logger = get_logger("DeviceConnector")
@@ -52,6 +53,9 @@ class DeploymentResult:
     backup_saved: bool = False
     rollback_status: str = "NOT_REQUIRED"
     verification_status: str = "SKIPPED"
+    rollback_verification_details: Optional[str] = None
+    approved_by: Optional[str] = None
+    approval_ref: Optional[str] = None
 
 
 class DeviceConnector:
@@ -169,6 +173,17 @@ class DeviceConnector:
                 )
                 with open(artifact_dir / "deployment_result.json", "w", encoding="utf-8") as f:
                     json.dump(res.__dict__, f, indent=2)
+                self._write_audit_record(
+                    artifact_dir=artifact_dir,
+                    deployment_id=deployment_id,
+                    device_name=device_name,
+                    backup_location=str(artifact_dir / "pre_change_running_config.txt") if backup_saved else None,
+                    deployment_status="success",
+                    failure_reason=None,
+                    rollback_triggered=False,
+                    rollback_status="NOT_REQUIRED",
+                    rollback_verification_result=None,
+                )
                 return res
 
             # Step 3: Selective Deployment Execution
@@ -196,26 +211,39 @@ class DeviceConnector:
                             error_msg = "; ".join(error_lines) if error_lines else "Cisco CLI command rejected."
                             logger.error("CLI error on device '%s': %s. Attempting rollback...", device_name, error_msg)
 
-                            # Attempt Rollback
-                            rollback_ok = False
-                            try:
-                                logger.info("Executing safe rollback on '%s'...", device_name)
-                                undo_cmds = []
-                                for cmd in reversed(applied_commands):
-                                    if cmd.startswith("ip ") or cmd.startswith("logging ") or cmd.startswith("snmp-server "):
-                                        undo_cmds.append(f"no {cmd}")
-                                if undo_cmds:
-                                    connection.send_config_set(undo_cmds)
-                                rollback_ok = True
-                            except Exception as rb_err:
-                                logger.error("Rollback failed on '%s': %s", device_name, rb_err)
+                            # Rollback: restore the exact pre-change config for every section this
+                            # deployment touched, then independently re-read the live device and
+                            # verify it actually matches before ever reporting success. Sending
+                            # "no <command>" and getting an OK back is NOT sufficient on its own -
+                            # see deployment/rollback_manager.py for the verification logic.
+                            rollback_result = execute_and_verify_rollback(
+                                connection=connection,
+                                pre_change_config=running_config,
+                                applied_commands=applied_commands,
+                            )
 
                             final_rollback_state = (
                                 DeviceLifecycleState.ROLLBACK_SUCCESSFUL.value
-                                if rollback_ok
+                                if rollback_result.status == "ROLLBACK_SUCCESSFUL"
                                 else DeviceLifecycleState.ROLLBACK_FAILED.value
                             )
-                            rollback_status = "SUCCESSFUL" if rollback_ok else "FAILED"
+                            rollback_status = (
+                                "SUCCESSFUL" if rollback_result.status == "ROLLBACK_SUCCESSFUL" else "FAILED"
+                            )
+                            verification_status = "PASSED" if rollback_result.verification_passed else "FAILED"
+
+                            self._write_audit_record(
+                                artifact_dir=artifact_dir,
+                                deployment_id=deployment_id,
+                                device_name=device_name,
+                                backup_location=str(artifact_dir / "pre_change_running_config.txt") if backup_saved else None,
+                                deployment_status="failed",
+                                failure_reason=f"CLI error on switch: {error_msg}",
+                                rollback_triggered=True,
+                                rollback_status=rollback_status,
+                                rollback_verification_result=rollback_result.verification_details,
+                            )
+
                             return DeploymentResult(
                                 device_name=device_name,
                                 ip_address=ip_address,
@@ -230,11 +258,23 @@ class DeviceConnector:
                                 change_required_count=change_required_count,
                                 backup_saved=backup_saved,
                                 rollback_status=rollback_status,
-                                verification_status="FAILED",
+                                verification_status=verification_status,
+                                rollback_verification_details=rollback_result.verification_details,
                             )
 
                 except Exception as send_err:
                     logger.error("Deployment execution error on '%s': %s", device_name, send_err)
+                    self._write_audit_record(
+                        artifact_dir=artifact_dir,
+                        deployment_id=deployment_id,
+                        device_name=device_name,
+                        backup_location=str(artifact_dir / "pre_change_running_config.txt") if backup_saved else None,
+                        deployment_status="failed",
+                        failure_reason=str(send_err),
+                        rollback_triggered=False,
+                        rollback_status="NOT_ATTEMPTED",
+                        rollback_verification_result="Deployment transport failed before any commands could be confirmed sent; no rollback was attempted.",
+                    )
                     return DeploymentResult(
                         device_name=device_name,
                         ip_address=ip_address,
@@ -248,7 +288,7 @@ class DeviceConnector:
                         compliant_items_count=compliant_count,
                         change_required_count=change_required_count,
                         backup_saved=backup_saved,
-                        rollback_status="ATTEMPTED",
+                        rollback_status="NOT_ATTEMPTED",
                         verification_status="FAILED",
                     )
 
@@ -280,10 +320,18 @@ class DeviceConnector:
             )
             with open(artifact_dir / "deployment_result.json", "w", encoding="utf-8") as f:
                 json.dump(res.__dict__, f, indent=2)
+            self._write_audit_record(
+                artifact_dir=artifact_dir,
+                deployment_id=deployment_id,
+                device_name=device_name,
+                backup_location=str(artifact_dir / "pre_change_running_config.txt") if backup_saved else None,
+                deployment_status="success",
+                failure_reason=None,
+                rollback_triggered=False,
+                rollback_status="NOT_REQUIRED",
+                rollback_verification_result=None,
+            )
             return res
-
-
-
 
         except DeviceAuthenticationError as error:
             connection_status = "authentication_failed"
@@ -372,6 +420,40 @@ class DeviceConnector:
         except Exception as error:
             logger.error("Failed to disconnect from device '%s': %s", device_name, error)
             return f"Device disconnect failed: {error}"
+
+    @staticmethod
+    def _write_audit_record(
+        artifact_dir: Any,
+        deployment_id: str,
+        device_name: str,
+        backup_location: Optional[str],
+        deployment_status: str,
+        failure_reason: Optional[str],
+        rollback_triggered: bool,
+        rollback_status: str,
+        rollback_verification_result: Optional[str],
+    ) -> None:
+        """Persist the mandatory per-deployment audit record (deployment_id, backup
+        location, rollback status/verification outcome, timestamp) for traceability."""
+        from datetime import datetime, timezone
+        import json
+
+        record = {
+            "deployment_id": deployment_id,
+            "device_name": device_name,
+            "backup_location": backup_location,
+            "deployment_status": deployment_status,
+            "failure_reason": failure_reason,
+            "rollback_triggered": rollback_triggered,
+            "rollback_status": rollback_status,
+            "rollback_verification_result": rollback_verification_result,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            with open(artifact_dir / "audit_record.json", "w", encoding="utf-8") as f:
+                json.dump(record, f, indent=2)
+        except Exception as write_err:
+            logger.error("Failed to write audit record for '%s': %s", device_name, write_err)
 
     @staticmethod
     def _split_commands(generated_configuration: str) -> List[str]:

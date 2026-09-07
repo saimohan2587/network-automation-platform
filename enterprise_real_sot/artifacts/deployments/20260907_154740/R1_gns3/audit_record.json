@@ -1,0 +1,11 @@
+{
+  "deployment_id": "20260907_154740",
+  "device_name": "R1_gns3",
+  "backup_location": "artifacts/deployments/20260907_154740/R1_gns3/pre_change_running_config.txt",
+  "deployment_status": "success",
+  "failure_reason": null,
+  "rollback_triggered": false,
+  "rollback_status": "NOT_REQUIRED",
+  "rollback_verification_result": null,
+  "timestamp": "2026-09-07T10:17:40.249681+00:00"
+}

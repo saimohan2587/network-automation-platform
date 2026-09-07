@@ -1,0 +1,57 @@
+# ==============================================================================
+# ABC Telecom Network Automation Platform - Metrics Matrix
+# ==============================================================================
+# Purpose: Define quantitative metrics collected for Network Device Health.
+# Specification: Prometheus Metric Standard
+# ==============================================================================
+
+version: "1.0.0"
+
+
+metrics:
+  # ============================================================================
+  # AREA A: NETWORK DEVICE HEALTH
+  # ============================================================================
+  - name: network_device_up
+    type: Gauge
+    description: "Binary operational reachability status of network device (1=UP, 0=DOWN)"
+    labels: [device_name, site, device_role, ip_address]
+    area: "A. Network Device Health"
+    source: "SNMP Exporter / ICMP Poller"
+
+  - name: network_device_cpu_utilization_percent
+    type: Gauge
+    description: "Current CPU utilization percentage (5-minute average)"
+    unit: "percent"
+    labels: [device_name, site, device_role, cpu_core]
+    area: "A. Network Device Health"
+    source: "SNMP Exporter (ciscoProcessMIB / CISCO-PROCESS-MIB)"
+
+  - name: network_device_memory_utilization_percent
+    type: Gauge
+    description: "Current RAM memory utilization percentage"
+    unit: "percent"
+    labels: [device_name, site, device_role, memory_pool]
+    area: "A. Network Device Health"
+    source: "SNMP Exporter (ciscoMemoryPoolMIB)"
+
+  - name: network_device_interface_status
+    type: Gauge
+    description: "Operational status of network interface (1=UP, 0=DOWN)"
+    labels: [device_name, interface_name, site, admin_status]
+    area: "A. Network Device Health"
+    source: "SNMP Exporter (IF-MIB :: ifOperStatus)"
+
+  - name: network_device_interface_errors_total
+    type: Counter
+    description: "Cumulative count of inbound and outbound interface packet errors"
+    labels: [device_name, interface_name, direction]
+    area: "A. Network Device Health"
+    source: "SNMP Exporter (IF-MIB :: ifInErrors / ifOutErrors)"
+
+  - name: network_device_interface_flaps_total
+    type: Counter
+    description: "Cumulative count of interface state transitions (UP/DOWN link flapping)"
+    labels: [device_name, interface_name, site]
+    area: "A. Network Device Health"
+    source: "SNMP Traps / Syslog Event Analyzer"

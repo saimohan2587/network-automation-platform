@@ -5,6 +5,7 @@ Calls Next: device_selector.py -> context_builder.py -> config_generator.py -> p
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, List, Mapping, Optional, Sequence
 
 
@@ -19,6 +20,9 @@ from deployment.netbox_client import NetBoxClient
 from deployment.credentials import CredentialResolver
 from deployment.lifecycle import BatchLifecycleState, DeviceLifecycleState
 from pre_deployment_validation import PreDeploymentValidator, PreDeploymentValidationReport
+
+
+
 
 
 logger = get_logger("DeploymentMain")
@@ -36,6 +40,20 @@ class DeploymentRequest:
     excluded_interfaces: Optional[Sequence[str]] = None
     save_config: bool = False
     dry_run: bool = False
+    # Phase 1 -- Exact Artifact Deployment. When set, `run()` never selects devices,
+    # never rebuilds context, never regenerates configuration, and never validates:
+    # it re-verifies the artifact at this path and deploys its exact recorded .cfg
+    # files. All fields above (selection_criteria, requested_protocols, etc.) are
+    # ignored in this mode -- the artifact's manifest.json is authoritative.
+    artifact_dir: Optional[str] = None
+    # Stage 0 CSV->NetBox Config Context sync is opt-in only (never implicit), and
+    # is never performed at all in artifact_dir mode regardless of this flag.
+    sync_sot: bool = False
+    # Audit-only metadata (Phase 1 Step 7): never bypasses validation or manifest
+    # verification, never itself grants deployment permission. Recorded verbatim
+    # onto every DeploymentResult produced by this run.
+    approved_by: Optional[str] = None
+    approval_ref: Optional[str] = None
 
 
 # Result dataclass capturing Pre-Deployment Assessment outcomes for a single target device.
@@ -134,18 +152,28 @@ class DeploymentOrchestrator:
         if request_error:
             return self._failed_summary(request_error)
 
+        if deployment_request.artifact_dir:
+            # Phase 1 -- Exact Artifact Deployment. Entirely separate path: never
+            # selects devices, never syncs SoT, never rebuilds context, never
+            # regenerates configuration, never re-validates. See _run_from_artifact.
+            summary = self._run_from_artifact(deployment_request)
+            return self._apply_approval_metadata(summary, deployment_request)
+
         logger.info("Deployment started.")
-        # Stage 0: Automated NetBox SoT Sync (synchronize CSV config context into NetBox REST API)
-        try:
-            import os, sys
-            importers_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../python/importers"))
-            if importers_dir not in sys.path:
-                sys.path.insert(0, importers_dir)
-            from import_config_context import run_config_context_import
-            logger.info("Synchronizing CSV Config Context intent into NetBox REST API...")
-            run_config_context_import()
-        except Exception as sync_err:
-            logger.warning("Automated Config Context pre-sync warning: %s", sync_err)
+        # Stage 0: Automated NetBox SoT Sync (synchronize CSV config context into NetBox REST API).
+        # Opt-in only via --sync-sot -- never runs implicitly.
+        if deployment_request.sync_sot:
+            try:
+                import os, sys
+                importers_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../python/importers"))
+                if importers_dir not in sys.path:
+                    sys.path.insert(0, importers_dir)
+                from import_config_context import run_config_context_import
+                logger.info("Synchronizing CSV Config Context intent into NetBox REST API (--sync-sot)...")
+                run_config_context_import()
+            except Exception as sync_err:
+                logger.warning("Automated Config Context pre-sync warning: %s", sync_err)
+
 
         try:
             # Stage 1: Query NetBox to select target network devices matching specified filter criteria.
@@ -193,6 +221,7 @@ class DeploymentOrchestrator:
             from deployment.artifact_manager import (
                 create_pre_deployment_dir,
                 generate_batch_name,
+                write_manifest,
                 write_summary_report,
             )
 
@@ -235,6 +264,18 @@ class DeploymentOrchestrator:
             )
             logger.info("Saved batch summary report -> %s", summary_txt_path)
 
+            # 3. Write manifest.json -- the immutable deployment contract for this artifact.
+            #    Only deployment_candidates (passed Pre-Deployment Validation) are eligible;
+            #    skipped_assessments are recorded for audit only, never as deployable.
+            manifest_path = write_manifest(
+                artifact_dir=artifact_dir,
+                batch_id=artifact_dir.name,
+                timestamp=now,
+                candidates=deployment_candidates,
+                skipped=skipped_assessments,
+            )
+            logger.info("Saved deployment manifest -> %s", manifest_path)
+
         # =========================================================================
         # PHASE 2: SELECTIVE DEPLOYMENT (DEPLOYMENT CANDIDATES ONLY)
         # =========================================================================
@@ -274,19 +315,26 @@ class DeploymentOrchestrator:
                 )
                 compliance_summary = compliance_orchestrator.run(comp_req)
                 logger.info(
-                    "Post-Deployment Compliance Validation complete: Compliant=%d, Drifted=%d, Failed=%d.",
+                    "Post-Deployment Compliance Validation complete: Compliant=%d, Drifted=%d, Unreachable=%d, Failed=%d.",
                     compliance_summary.compliant_device_count,
                     compliance_summary.drifted_device_count,
+                    compliance_summary.unreachable_device_count,
                     compliance_summary.failed_device_count,
                 )
-                # Map ComplianceOrchestrator outcomes to DeviceLifecycleState
+                # Map ComplianceOrchestrator outcomes to DeviceLifecycleState. This is the
+                # ONLY place deployment/main.py touches the post_deployment_validation
+                # verdict -- it reads `overall_status` verbatim and never re-derives it.
                 comp_map = {res.device_name: res.overall_status for res in compliance_summary.results}
                 updated_results = []
                 for res in deployment_results:
                     if res.device_name in comp_map and res.deployment_status == "success":
                         st = comp_map[res.device_name]
+                        # `state` may stay a coarse deployment lifecycle stage (verified vs.
+                        # not), but `verification_status` below carries the EXACT verdict
+                        # string from post_deployment_validation (COMPLIANT/DRIFT/
+                        # UNREACHABLE/FAILED) -- never collapsed into a SUCCESS/FAILED pair.
                         final_state = DeviceLifecycleState.DEPLOYED_AND_VERIFIED.value if st == "COMPLIANT" else DeviceLifecycleState.DEPLOYED_VERIFICATION_FAILED.value
-                        ver_stat = "SUCCESS" if st == "COMPLIANT" else "FAILED"
+                        ver_stat = st
                         updated_results.append(
                             DeploymentResult(
                                 device_name=res.device_name,
@@ -324,8 +372,249 @@ class DeploymentOrchestrator:
             artifact_dir=artifact_dir_str,
         )
         self._log_summary(summary)
+        return self._apply_approval_metadata(summary, deployment_request)
+
+    def _run_from_artifact(self, deployment_request: DeploymentRequest) -> DeploymentSummary:
+        """Phase 1 -- Exact Artifact Deployment.
+
+        Deploys the EXACT configuration already validated and sealed into
+        `deployment_request.artifact_dir`'s manifest.json (Phase 0). This method
+        never calls self.context_builder, self.config_generator, or
+        self.pre_deployment_validator -- the artifact's manifest is the
+        authoritative record that those stages already ran and passed, and
+        VALIDATED CONFIG == APPROVED CONFIG == DEPLOYED CONFIG requires that no
+        regeneration opportunity exists between artifact creation and deployment.
+
+        Flow: verify_manifest() -> reject immediately on any failure (missing
+        manifest, tampered/missing config, bad batch_hash, deployable=false) ->
+        re-query NetBox by device_id for each manifest device -> verify identity
+        (id + name match) -> load the exact recorded .cfg -> hand it to the
+        existing _deploy_candidate()/DeviceConnector path unchanged.
+        """
+        from deployment.artifact_manager import verify_manifest
+
+        artifact_dir = Path(deployment_request.artifact_dir)
+        logger.info("=== ARTIFACT DEPLOYMENT MODE (Phase 1): %s ===", artifact_dir)
+
+        verification = verify_manifest(artifact_dir)
+        if not verification["valid"]:
+            message = "Artifact verification failed: " + "; ".join(verification["errors"])
+            logger.error(message)
+            return self._failed_summary(message)
+
+        manifest = verification["manifest"]
+        manifest_devices = manifest.get("devices", [])
+        logger.info(
+            "Artifact verified OK. batch_id=%s git_commit_sha=%s deployable_devices=%d",
+            manifest.get("batch_id"),
+            manifest.get("git_commit_sha"),
+            len(manifest_devices),
+        )
+
+        # Re-verify device identity against live NetBox for every manifest device.
+        # NEVER re-select devices by site/role/name -- the manifest defines the
+        # exact batch; a failed identity check STOPs deployment for that device
+        # only, and must never fall back to selecting a similarly-named device.
+        assessment_results: List[AssessmentResult] = []
+        deployment_candidates: List[AssessmentResult] = []
+        identity_failures: List[AssessmentResult] = []
+
+        for manifest_device in manifest_devices:
+            assessment = self._build_candidate_from_artifact(manifest_device, artifact_dir)
+            assessment_results.append(assessment)
+            if assessment.is_candidate:
+                deployment_candidates.append(assessment)
+            else:
+                identity_failures.append(assessment)
+
+        logger.info(
+            "Device identity re-verification complete: Total=%d, Verified=%d, Failed=%d.",
+            len(assessment_results),
+            len(deployment_candidates),
+            len(identity_failures),
+        )
+
+        deployment_results: List[DeploymentResult] = []
+        for failure in identity_failures:
+            ip_address = self._target_address(failure.connection_details) if failure.connection_details else None
+            deployment_results.append(
+                self._failed_result(
+                    device_name=failure.device_name,
+                    ip_address=ip_address,
+                    error_message=failure.failure_reason or "Device identity verification failed",
+                    state=DeviceLifecycleState.VALIDATION_FAILED.value,
+                )
+            )
+
+        # Reuse the existing deploy path unchanged (handles dry_run vs. live SSH,
+        # backup, selective push, rollback, save-config -- none of that changes).
+        for candidate in deployment_candidates:
+            deployment_results.append(self._deploy_candidate(candidate, deployment_request))
+
+        summary = self._build_summary(
+            selected_device_count=len(assessment_results),
+            assessment_passed_count=len(deployment_candidates),
+            assessment_failed_count=len(identity_failures),
+            skipped_device_count=len(identity_failures),
+            assessment_results=assessment_results,
+            results=deployment_results,
+            artifact_dir=str(artifact_dir),
+        )
+        self._log_summary(summary)
         return summary
 
+    def _build_candidate_from_artifact(
+        self,
+        manifest_device: Mapping[str, Any],
+        artifact_dir: Path,
+    ) -> AssessmentResult:
+        """Re-verify one manifest device's identity against live NetBox, then load
+        its EXACT recorded .cfg (never regenerated). Connection details are
+        resolved from the freshly re-queried NetBox record -- the manifest itself
+        carries no credentials -- via the same CredentialResolver normal
+        deployment uses, so IP/platform changes since artifact creation are
+        picked up honestly rather than trusted from stale artifact metadata.
+        """
+        device_id = manifest_device.get("device_id")
+        device_name = manifest_device.get("device_name") or "unknown"
+        config_file = manifest_device.get("config_file")
+
+        if device_id is None:
+            message = f"DEVICE_IDENTITY_MISMATCH: manifest entry for '{device_name}' has no device_id."
+            logger.error(message)
+            return AssessmentResult(
+                device_name=device_name,
+                is_candidate=False,
+                failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
+            )
+
+        try:
+            fresh_device = self.netbox_client.get(f"dcim/devices/{device_id}/")
+        except Exception as error:
+            message = f"DEVICE_IDENTITY_MISMATCH: NetBox lookup failed for device_id={device_id} ('{device_name}'): {error}"
+            logger.error(message)
+            return AssessmentResult(
+                device_name=device_name,
+                is_candidate=False,
+                failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
+            )
+
+        if not isinstance(fresh_device, Mapping) or fresh_device.get("id") != device_id:
+            actual_id = fresh_device.get("id") if isinstance(fresh_device, Mapping) else None
+            message = (
+                f"DEVICE_IDENTITY_MISMATCH: manifest device_id={device_id} ('{device_name}') did not resolve "
+                f"to a matching NetBox device id (got id={actual_id!r})."
+            )
+            logger.error(message)
+            return AssessmentResult(
+                device_name=device_name,
+                is_candidate=False,
+                failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
+            )
+
+        if fresh_device.get("name") != device_name:
+            message = (
+                f"DEVICE_IDENTITY_MISMATCH: NetBox device_id={device_id} now has name "
+                f"'{fresh_device.get('name')}', but manifest recorded '{device_name}'."
+            )
+            logger.error(message)
+            return AssessmentResult(
+                device_name=device_name,
+                device=fresh_device,
+                is_candidate=False,
+                failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
+            )
+
+        # Staleness signal only (never a hard block) -- NetBox's `last_updated` is
+        # not consistently surfaced by every code path today, so a missing value
+        # on either side is not itself an error.
+        manifest_last_updated = manifest_device.get("device_last_updated")
+        fresh_last_updated = fresh_device.get("last_updated")
+        if manifest_last_updated and fresh_last_updated and manifest_last_updated != fresh_last_updated:
+            logger.warning(
+                "Staleness signal for device '%s' (device_id=%s): manifest device_last_updated=%s, "
+                "current NetBox last_updated=%s. Deploying the exact artifact config regardless -- "
+                "NetBox metadata has changed since the artifact was created.",
+                device_name,
+                device_id,
+                manifest_last_updated,
+                fresh_last_updated,
+            )
+
+        config_path = Path(artifact_dir) / config_file if config_file else None
+        if not config_path or not config_path.exists():
+            message = f"Artifact config file missing at deployment time for '{device_name}': {config_file}"
+            logger.error(message)
+            return AssessmentResult(
+                device_name=device_name,
+                device=fresh_device,
+                is_candidate=False,
+                failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
+            )
+
+        exact_configuration = config_path.read_text(encoding="utf-8")
+
+        try:
+            connection_details = self.credential_resolver.resolve_connection_details(fresh_device)
+        except Exception as error:
+            message = f"Credential resolution failed: {error}"
+            logger.error("%s Device: '%s'.", message, device_name)
+            return AssessmentResult(
+                device_name=device_name,
+                device=fresh_device,
+                is_candidate=False,
+                failure_reason=message,
+                state=DeviceLifecycleState.VALIDATION_FAILED.value,
+            )
+
+        logger.info(
+            "Device identity verified for '%s' (device_id=%s). Loaded EXACT artifact config '%s' "
+            "(config_sha256=%s) -- no regeneration performed.",
+            device_name,
+            device_id,
+            config_file,
+            manifest_device.get("config_sha256"),
+        )
+
+        return AssessmentResult(
+            device_name=device_name,
+            device=fresh_device,
+            connection_details=connection_details,
+            generated_configuration=exact_configuration,
+            is_candidate=True,
+            state=DeviceLifecycleState.VALIDATED.value,
+        )
+
+    @staticmethod
+    def _apply_approval_metadata(
+        summary: DeploymentSummary,
+        deployment_request: DeploymentRequest,
+    ) -> DeploymentSummary:
+        """Stamp --approved-by / --approval-ref audit metadata onto every
+        DeploymentResult using the existing reporting structures. Pure audit
+        evidence: never influences validation, manifest verification, or
+        whether any device was deployed -- it only records who/what triggered
+        this run for later audit review.
+        """
+        if deployment_request.approved_by is None and deployment_request.approval_ref is None:
+            return summary
+
+        import dataclasses
+
+        stamped_results = tuple(
+            dataclasses.replace(
+                result,
+                approved_by=deployment_request.approved_by,
+                approval_ref=deployment_request.approval_ref,
+            )
+            for result in summary.results
+        )
+        return dataclasses.replace(summary, results=stamped_results)
 
     def _assess_device(
         self,
@@ -381,6 +670,9 @@ class DeploymentOrchestrator:
                 requested_protocols=deployment_request.requested_protocols,
                 requested_interfaces=deployment_request.requested_interfaces,
             )
+
+            site = str(device.get("site", {}).get("slug", "hyderabad")) if isinstance(device.get("site"), dict) else "hyderabad"
+            role = str(device.get("device_role", {}).get("slug", "access")) if isinstance(device.get("device_role"), dict) else "access"
 
             if not validation_report.is_valid:
                 error_msg = f"Pre-deployment validation failed: {'; '.join(validation_report.error_messages)}"
@@ -465,6 +757,10 @@ class DeploymentOrchestrator:
             device_name,
             self._target_address(connection_details),
         )
+        site = "hyderabad"
+        role = "access" if "SW" in device_name else "router"
+        import time
+        start_time = time.time()
         try:
             raw_result = self.device_connector.deploy(
                 device_name=device_name,
@@ -472,6 +768,7 @@ class DeploymentOrchestrator:
                 generated_configuration=generated_configuration,
                 save_config=deployment_request.save_config,
             )
+            elapsed_time = time.time() - start_time
             final_state = (
                 raw_result.state
                 if raw_result.state
@@ -481,6 +778,7 @@ class DeploymentOrchestrator:
                     else DeviceLifecycleState.DEPLOYMENT_FAILED.value
                 )
             )
+
             return DeploymentResult(
                 device_name=raw_result.device_name,
                 ip_address=raw_result.ip_address,
