@@ -32,8 +32,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run CI Validation Suite (Layers 1-12: syntax, imports, CSV/YAML config,
-          capability gate, rollback, observability config, ServiceNow integration,
-          maintenance mode, rollback manager, ServiceNow failure handling, security sanity)
+      - name: Run CI Validation Suite
         run: |
           python3 tests/ci_runner.py
