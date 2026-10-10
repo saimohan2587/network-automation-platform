@@ -233,6 +233,7 @@ jobs:
           deploy_ok = False
           drift_detected = False
           deployment_failed = False
+          unreachable_detected = False
           drift_details = []
 
           if not result_path.exists():
@@ -251,6 +252,8 @@ jobs:
                       deployment_failed = True
                   elif r.get("verification_status") == "DRIFT":
                       drift_detected = True
+                  elif r.get("verification_status") == "UNREACHABLE":
+                      unreachable_detected = True
                   elif r.get("verification_status") in BAD_VERDICTS:
                       deployment_failed = True
               lines.append("")
@@ -311,6 +314,7 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"deploy_ok={'true' if deploy_ok else 'false'}\n")
               f.write(f"drift_detected={'true' if drift_detected else 'false'}\n")
+              f.write(f"unreachable_detected={'true' if unreachable_detected else 'false'}\n")
               f.write(f"deployment_failed={'true' if deployment_failed else 'false'}\n")
           PYEOF
 
@@ -339,6 +343,13 @@ jobs:
             echo "NOTICE: SSH Deployment SUCCEEDED, but POST-DEPLOYMENT DRIFT was detected!" >&2
             echo "Live device state does not match NetBox Source of Truth." >&2
             echo "Review the Job Summary above for the exact drift parameters and resolution steps." >&2
+            echo "================================================================================" >&2
+            exit 1
+          elif [ "${{ steps.summary.outputs.unreachable_detected }}" = "true" ] && [ "${{ steps.summary.outputs.deployment_failed }}" != "true" ]; then
+            echo "::error title=Deployment Succeeded but Device Unreachable for Verification::Configuration commands were successfully pushed to device(s) via SSH and backed up, but Post-Deployment Compliance Verification encountered connection/auth timeout while running show commands."
+            echo "================================================================================" >&2
+            echo "NOTICE: SSH Deployment SUCCEEDED, but device was unreachable during post-verification!" >&2
+            echo "Configuration was applied to device, but compliance checks timed out." >&2
             echo "================================================================================" >&2
             exit 1
           elif [ "${{ steps.summary.outputs.deployment_failed }}" = "true" ]; then

@@ -66,6 +66,9 @@ class SSHCollector(BaseCollector):
             "secret": connection_details.get("secret", ""),
             "port": connection_details.get("port", 22),
             "timeout": connection_details.get("timeout", 30),
+            "auth_timeout": 30,
+            "banner_timeout": 30,
+            "conn_timeout": 30,
             "fast_cli": False,
         }
 
