@@ -73,8 +73,14 @@ jobs:
       - name: Resolve Artifact Paths
         id: paths
         run: |
-          echo "workspace_relative=enterprise_real_sot/artifacts/deployed/${{ github.event.inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
-          echo "job_relative=artifacts/deployed/${{ github.event.inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
+          RAW_NAME="${{ github.event.inputs.artifact_name }}"
+          TRIMMED_NAME=$(echo "$RAW_NAME" | xargs)
+          RAW_RUN_ID="${{ github.event.inputs.artifact_run_id }}"
+          TRIMMED_RUN_ID=$(echo "$RAW_RUN_ID" | xargs)
+          echo "artifact_name=${TRIMMED_NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_run_id=${TRIMMED_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "workspace_relative=enterprise_real_sot/artifacts/deployed/${TRIMMED_NAME}" >> "$GITHUB_OUTPUT"
+          echo "job_relative=artifacts/deployed/${TRIMMED_NAME}" >> "$GITHUB_OUTPUT"
 
       # Downloads into artifacts/deployed/ (never artifacts/pre_deployment/) so
       # a downloaded, already-approved artifact can never be confused with a
@@ -83,8 +89,8 @@ jobs:
       - name: Download Approved Deployment Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ github.event.inputs.artifact_name }}
-          run-id: ${{ github.event.inputs.artifact_run_id }}
+          name: ${{ steps.paths.outputs.artifact_name }}
+          run-id: ${{ steps.paths.outputs.artifact_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ steps.paths.outputs.workspace_relative }}
 
@@ -143,8 +149,8 @@ jobs:
               "## Phase 4 -- Controlled Deployment Plan\n",
               f"- **Batch ID**: `{manifest.get('batch_id')}`",
               f"- **Git Commit SHA (artifact origin)**: `{manifest.get('git_commit_sha')}`",
-              f"- **Artifact Name**: `${{ github.event.inputs.artifact_name }}`",
-              f"- **Source Plan Run ID**: `${{ github.event.inputs.artifact_run_id }}`",
+              f"- **Artifact Name**: `${{ steps.paths.outputs.artifact_name }}`",
+              f"- **Source Plan Run ID**: `${{ steps.paths.outputs.artifact_run_id }}`",
               f"- **Devices Targeted**: {len(devices)}",
               "- **Approved By**: `${{ github.actor }}`",
               "- **Approval Reference**: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`\n",
