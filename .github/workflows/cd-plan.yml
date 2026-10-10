@@ -42,16 +42,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python Environment
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-          cache: "pip"
-
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python3 -m pip install --break-system-packages -r requirements.txt
 
       # --------------------------------------------------------------------
       # RUNNER / NETBOX CONNECTIVITY CONSTRAINT (Step 10 -- read before running):
