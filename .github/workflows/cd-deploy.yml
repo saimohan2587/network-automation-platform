@@ -194,7 +194,7 @@ jobs:
           if [ "${{ github.event.inputs.save_config }}" = "true" ]; then
             SAVE_FLAG="--save-config"
           fi
-          python -m deployment.cli \
+          python3 -m deployment.cli \
             --use-artifact-dir "$ARTIFACT_DIR" \
             --approved-by "${{ github.actor }}" \
             --approval-ref "$RUN_URL" \
@@ -231,10 +231,14 @@ jobs:
           BAD_VERDICTS = {"DRIFT", "UNREACHABLE", "FAILED"}
           lines = ["## Phase 4 -- Deployment Result\n"]
           deploy_ok = False
+          drift_detected = False
+          deployment_failed = False
+          drift_details = []
 
           if not result_path.exists():
               lines.append(f"No `deployment_result.json` was produced (deployment/cli.py exit code: `{cli_exit_code}`).\n")
               lines.append("This means deployment did not reach the point of recording per-device results -- treat as FAILED.\n")
+              deployment_failed = True
           else:
               payload = json.loads(result_path.read_text(encoding="utf-8"))
               results = payload.get("results", [])
@@ -243,20 +247,81 @@ jobs:
               lines.append("|---|---|---|")
               for r in results:
                   lines.append(f"| {r.get('device_name')} | {r.get('deployment_status')} | {r.get('verification_status')} |")
+                  if r.get("deployment_status") != "success":
+                      deployment_failed = True
+                  elif r.get("verification_status") == "DRIFT":
+                      drift_detected = True
+                  elif r.get("verification_status") in BAD_VERDICTS:
+                      deployment_failed = True
               lines.append("")
 
               deploy_ok = bool(results) and all(
                   r.get("deployment_status") == "success" and r.get("verification_status") not in BAD_VERDICTS
                   for r in results
               )
-              lines.append(f"- **Overall**: {'READY -- all devices deployed and verified' if deploy_ok else 'NOT fully successful -- see table above'}")
+              lines.append(f"- **Overall**: {'READY -- all devices deployed and verified' if deploy_ok else 'NOT fully successful -- see details below'}")
               lines.append(f"- **deployment/cli.py exit code**: `{cli_exit_code}`\n")
+
+              # Extract detailed drift records from post_deployment artifacts if drift occurred
+              post_dir = Path("artifacts/post_deployment")
+              if post_dir.exists():
+                  for r in results:
+                      dev_name = r.get("device_name")
+                      if r.get("verification_status") == "DRIFT":
+                          # Find newest audit report for this device
+                          matching_files = sorted(post_dir.glob(f"*/{dev_name}.json"), key=os.path.getmtime, reverse=True)
+                          if matching_files:
+                              try:
+                                  dev_audit = json.loads(matching_files[0].read_text(encoding="utf-8"))
+                                  for d in dev_audit.get("drifts", []):
+                                      drift_details.append({
+                                          "device": dev_name,
+                                          "protocol": d.get("protocol", "unknown"),
+                                          "scope": d.get("scope", "global"),
+                                          "field": d.get("field_name", "unknown"),
+                                          "expected": str(d.get("expected", "")),
+                                          "actual": str(d.get("actual", "")),
+                                          "reason": d.get("reason", "Value mismatch")
+                                      })
+                              except Exception as err:
+                                  print(f"Warning reading post-deployment audit file {matching_files[0]}: {err}")
+
+              if drift_detected and not deployment_failed:
+                  lines.append("> [!WARNING]")
+                  lines.append("> ### ⚠️ Deployment Succeeded via SSH, but Post-Deployment Drift was Detected!")
+                  lines.append("> All configuration commands were successfully applied to target devices and backups were saved.")
+                  lines.append("> However, post-deployment verification identified that live device state differs from NetBox Source of Truth.\n")
+
+              if drift_details:
+                  lines.append("### 🔍 Detected Configuration Drift Details\n")
+                  lines.append("| Device | Protocol | Scope | Parameter | Expected (NetBox SoT) | Actual (Live Device) | Mismatch Reason |")
+                  lines.append("|---|---|---|---|---|---|---|")
+                  for item in drift_details:
+                      lines.append(f"| `{item['device']}` | `{item['protocol']}` | `{item['scope']}` | `{item['field']}` | `{item['expected']}` | `{item['actual']}` | {item['reason']} |")
+                  lines.append("\n### 🛠️ How to Resolve This Drift")
+                  lines.append("1. **Re-Plan & Re-Deploy (Recommended)**: Run **CD Plan** on GitHub Actions to generate a fresh artifact including all role/protocol capabilities, then run **CD Deploy**.")
+                  lines.append("2. **Device Hotfix in GNS3**: Apply the expected command on the live device CLI (e.g. `spanning-tree mode rapid-pvst`), write memory, and re-run verification.")
+                  lines.append("3. **Source of Truth Alignment**: If the live device setting is intentional, update NetBox Config Context to match the expected state.\n")
+              elif drift_detected:
+                  lines.append("### ⚠️ Configuration Drift Detected\n")
+                  lines.append("Post-deployment verification found drift. Download the attached `post_deployment_audit` artifact to inspect the raw JSON report.\n")
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("\n".join(lines) + "\n")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"deploy_ok={'true' if deploy_ok else 'false'}\n")
+              f.write(f"drift_detected={'true' if drift_detected else 'false'}\n")
+              f.write(f"deployment_failed={'true' if deployment_failed else 'false'}\n")
           PYEOF
+
+      # Upload post-deployment verification audit results for diagnostic triage
+      - name: Upload Post-Deployment Compliance Audit Artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: post_deployment_audit_${{ github.run_id }}
+          path: enterprise_real_sot/artifacts/post_deployment/
+          if-no-files-found: ignore
 
       # Authoritative pass/fail gate for this job: a config push succeeding
       # does NOT mean overall success -- DRIFT/UNREACHABLE/FAILED verification,
@@ -268,7 +333,18 @@ jobs:
             steps.summary.outputs.deploy_ok != 'true'
           ) }}
         run: |
-          echo "Deployment did not fully succeed: either the artifact failed verification," >&2
-          echo "or at least one device was not both successfully deployed AND verified COMPLIANT." >&2
-          echo "See the Job Summary above for exact per-device deployment/verification status." >&2
-          exit 1
+          if [ "${{ steps.summary.outputs.drift_detected }}" = "true" ] && [ "${{ steps.summary.outputs.deployment_failed }}" != "true" ]; then
+            echo "::error title=Deployment Succeeded but Drift Detected::Configuration commands were successfully pushed to device(s) via SSH and backed up, but Post-Deployment Compliance Verification detected DRIFT against NetBox Source of Truth. Review the Job Summary above for exact drift details and resolution steps."
+            echo "================================================================================" >&2
+            echo "NOTICE: SSH Deployment SUCCEEDED, but POST-DEPLOYMENT DRIFT was detected!" >&2
+            echo "Live device state does not match NetBox Source of Truth." >&2
+            echo "Review the Job Summary above for the exact drift parameters and resolution steps." >&2
+            echo "================================================================================" >&2
+            exit 1
+          elif [ "${{ steps.summary.outputs.deployment_failed }}" = "true" ]; then
+            echo "::error title=SSH Deployment Failed::Configuration could not be applied to one or more devices via SSH. Check the deployment logs."
+            exit 1
+          else
+            echo "::error title=Pipeline Verification Failed::Artifact integrity check or post-deployment verification did not succeed."
+            exit 1
+          fi

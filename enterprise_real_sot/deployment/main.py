@@ -746,7 +746,8 @@ class DeploymentOrchestrator:
             )
 
             site = str(device.get("site", {}).get("slug", "hyderabad")) if isinstance(device.get("site"), dict) else "hyderabad"
-            role = str(device.get("device_role", {}).get("slug", "access")) if isinstance(device.get("device_role"), dict) else "access"
+            role_obj = device.get("role") or device.get("device_role") or {}
+            role = str(role_obj.get("slug", "access")) if isinstance(role_obj, dict) else str(role_obj)
 
             if not validation_report.is_valid:
                 error_msg = f"Pre-deployment validation failed: {'; '.join(validation_report.error_messages)}"

@@ -247,6 +247,8 @@ def print_execution_results(summary: DeploymentSummary, dry_run: bool) -> None:
         print(f"Backup                 : {backup_stat}")
         print(f"Deployment             : {dep_stat}")
         print(f"Post Verification      : {post_verif}")
+        if dep_stat == "SUCCESS" and post_verif == "DRIFT":
+            print("Notice                 : SSH push SUCCEEDED, but post-deployment verification detected DRIFT.")
         print(f"Rollback               : {rollback_stat}")
         print(f"Final Lifecycle State  : {result.state or 'UNKNOWN'}")
         if result.error_message and result.state != "DRY_RUN":
@@ -344,7 +346,14 @@ def main(raw_args: Sequence[str] = None) -> int:
             print(f"\nArtifact deployment blocked: {summary.error_message}\n")
             return 1
 
-        return _exit_code_for(summary)
+        exit_code = _exit_code_for(summary)
+        if exit_code != 0:
+            drifted = [r.device_name for r in summary.results if getattr(r, "verification_status", None) == "DRIFT"]
+            if drifted and summary.failed_device_count == 0:
+                print(f"\n[DRIFT NOTICE] Deployment succeeded via SSH, but post-deployment compliance verification detected drift on: {', '.join(drifted)}.")
+                print("[DRIFT NOTICE] Review post-deployment compliance artifacts under artifacts/post_deployment/ for details.\n")
+
+        return exit_code
 
     # Parse device selection criteria, protocol list, interface list, and excluded interfaces
     selection_criteria = parse_selection_criteria(args.devices)

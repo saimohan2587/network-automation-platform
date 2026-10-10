@@ -126,6 +126,12 @@ class ContextBuilder:
         # Step 5: Query and structure all interface metadata and assigned IP addresses for this device.
         interfaces = self._get_device_interfaces_and_ips(device_id)
 
+        role_obj = device.get("role") or device.get("device_role") or {}
+        role_slug = role_obj.get("slug") if isinstance(role_obj, dict) else (str(role_obj) if role_obj else None)
+
+        platform_obj = device.get("platform") or {}
+        platform_slug = platform_obj.get("slug") if isinstance(platform_obj, dict) else (str(platform_obj) if platform_obj else None)
+
         # Construct final unified context dictionary containing device info, merged config, and interfaces.
         # This dictionary is passed directly to ConfigGenerator to render deterministic CLI configuration.
         unified_context = {
@@ -133,8 +139,8 @@ class ContextBuilder:
                 "id": device_id,
                 "name": device_name,
                 "site": site_slug,
-                "role": device.get("device_role", {}).get("slug"),
-                "platform": device.get("platform", {}).get("slug"),
+                "role": role_slug,
+                "platform": platform_slug,
                 "primary_ip4": device.get("primary_ip4", {}).get("address") or device.get("primary_ip", {}).get("address")
             },
             "config": merged_config,
