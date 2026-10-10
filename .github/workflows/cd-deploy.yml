@@ -43,7 +43,7 @@ concurrency:
 jobs:
   cd-deploy:
     name: Deploy Approved Artifact
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # --------------------------------------------------------------------
     # HUMAN APPROVAL GATE:
     # This environment does not exist in the repository yet. Declaring
