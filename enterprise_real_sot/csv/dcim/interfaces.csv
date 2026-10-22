@@ -356,42 +356,115 @@ sw-access-07,GigabitEthernet1/1/4,1000base-x-sfp,true,false,,,,,
 sw-access-07,TenGigabitEthernet1/1/1,10gbase-x-sfpp,true,false,,,,,
 sw-access-07,TenGigabitEthernet1/1/2,10gbase-x-sfpp,true,false,,,,,
 
-R1_gns3,FastEthernet0/0,virtual,true,Management IP 10.10.10.2/24
-R1_gns3,FastEthernet1/0,virtual,false,Administratively down
-R1_gns3,GigabitEthernet2/0,virtual,true,Routed link toward SW1 network; IP 10.10.20.1/24
-R1_gns3,GigabitEthernet3/0,virtual,true,Routed link toward SW2 network; IP 10.10.30.1/24
-R1_gns3,GigabitEthernet4/0,virtual,false,Administratively down
-SW1_gns3,GigabitEthernet0/0,virtual,true,Uplink toward router network
-SW1_gns3,GigabitEthernet0/1,virtual,false,Currently down
-SW1_gns3,GigabitEthernet0/2,virtual,false,Currently down
-SW1_gns3,GigabitEthernet0/3,virtual,false,Currently down
-SW1_gns3,GigabitEthernet1/0,virtual,false,Currently down
-SW1_gns3,GigabitEthernet1/1,virtual,false,Currently down
-SW1_gns3,GigabitEthernet1/2,virtual,false,Currently down
-SW1_gns3,GigabitEthernet1/3,virtual,false,Currently down
-SW1_gns3,GigabitEthernet2/0,virtual,false,Currently down
-SW1_gns3,GigabitEthernet2/1,virtual,false,Currently down
-SW1_gns3,GigabitEthernet2/2,virtual,false,Currently down
-SW1_gns3,GigabitEthernet2/3,virtual,false,Currently down
-SW1_gns3,GigabitEthernet3/0,virtual,false,Currently down
-SW1_gns3,GigabitEthernet3/1,virtual,false,Currently down
-SW1_gns3,GigabitEthernet3/2,virtual,false,Currently down
-SW1_gns3,GigabitEthernet3/3,virtual,false,Currently down
-SW1_gns3,Vlan1,virtual,true,Management SVI 10.10.20.2/24
-SW2_gns3,GigabitEthernet0/0,virtual,true,Uplink toward router network
-SW2_gns3,GigabitEthernet0/1,virtual,false,Currently down
-SW2_gns3,GigabitEthernet0/2,virtual,false,Currently down
-SW2_gns3,GigabitEthernet0/3,virtual,false,Currently down
-SW2_gns3,GigabitEthernet1/0,virtual,false,Currently down
-SW2_gns3,GigabitEthernet1/1,virtual,false,Currently down
-SW2_gns3,GigabitEthernet1/2,virtual,false,Currently down
-SW2_gns3,GigabitEthernet1/3,virtual,false,Currently down
-SW2_gns3,GigabitEthernet2/0,virtual,false,Currently down
-SW2_gns3,GigabitEthernet2/1,virtual,false,Currently down
-SW2_gns3,GigabitEthernet2/2,virtual,false,Currently down
-SW2_gns3,GigabitEthernet2/3,virtual,false,Currently down
-SW2_gns3,GigabitEthernet3/0,virtual,false,Currently down
-SW2_gns3,GigabitEthernet3/1,virtual,false,Currently down
-SW2_gns3,GigabitEthernet3/2,virtual,false,Currently down
-SW2_gns3,GigabitEthernet3/3,virtual,false,Currently down
-SW2_gns3,Vlan1,virtual,true,Management SVI 10.10.30.2/24
+R1,FastEthernet0/0,virtual,true,Management IP 10.10.10.2/24
+R1,FastEthernet1/0,virtual,true,Interconnect to R2
+R1,GigabitEthernet2/0,virtual,true,Routed link toward SW1 network; IP 10.10.20.1/24
+R1,GigabitEthernet3/0,virtual,true,Routed link toward SW2 network; IP 10.10.30.1/24
+R1,GigabitEthernet4/0,virtual,true,Gateway for SW3Staging 10.10.80.1/24
+R2,FastEthernet0/0,virtual,true,Management interface 10.10.70.2/24
+R2,FastEthernet1/0,virtual,false,Unassigned
+R2,GigabitEthernet2/0,virtual,true,Gateway for SW1Prod 10.10.40.1/24
+R2,GigabitEthernet3/0,virtual,true,Gateway for SW2Prod 10.10.50.1/24
+R2,GigabitEthernet4/0,virtual,true,Gateway for SW3Prod 10.10.60.1/24
+SW1Staging,GigabitEthernet0/0,virtual,true,Uplink toward router network
+SW1Staging,GigabitEthernet0/1,virtual,false,Currently down
+SW1Staging,GigabitEthernet0/2,virtual,false,Currently down
+SW1Staging,GigabitEthernet0/3,virtual,false,Currently down
+SW1Staging,GigabitEthernet1/0,virtual,false,Currently down
+SW1Staging,GigabitEthernet1/1,virtual,false,Currently down
+SW1Staging,GigabitEthernet1/2,virtual,false,Currently down
+SW1Staging,GigabitEthernet1/3,virtual,false,Currently down
+SW1Staging,GigabitEthernet2/0,virtual,false,Currently down
+SW1Staging,GigabitEthernet2/1,virtual,false,Currently down
+SW1Staging,GigabitEthernet2/2,virtual,false,Currently down
+SW1Staging,GigabitEthernet2/3,virtual,false,Currently down
+SW1Staging,GigabitEthernet3/0,virtual,false,Currently down
+SW1Staging,GigabitEthernet3/1,virtual,false,Currently down
+SW1Staging,GigabitEthernet3/2,virtual,false,Currently down
+SW1Staging,GigabitEthernet3/3,virtual,false,Currently down
+SW1Staging,Vlan1,virtual,true,Management SVI 10.10.20.2/24
+SW2Staging,GigabitEthernet0/0,virtual,true,Uplink toward router network
+SW2Staging,GigabitEthernet0/1,virtual,false,Currently down
+SW2Staging,GigabitEthernet0/2,virtual,false,Currently down
+SW2Staging,GigabitEthernet0/3,virtual,false,Currently down
+SW2Staging,GigabitEthernet1/0,virtual,false,Currently down
+SW2Staging,GigabitEthernet1/1,virtual,false,Currently down
+SW2Staging,GigabitEthernet1/2,virtual,false,Currently down
+SW2Staging,GigabitEthernet1/3,virtual,false,Currently down
+SW2Staging,GigabitEthernet2/0,virtual,false,Currently down
+SW2Staging,GigabitEthernet2/1,virtual,false,Currently down
+SW2Staging,GigabitEthernet2/2,virtual,false,Currently down
+SW2Staging,GigabitEthernet2/3,virtual,false,Currently down
+SW2Staging,GigabitEthernet3/0,virtual,false,Currently down
+SW2Staging,GigabitEthernet3/1,virtual,false,Currently down
+SW2Staging,GigabitEthernet3/2,virtual,false,Currently down
+SW2Staging,GigabitEthernet3/3,virtual,false,Currently down
+SW2Staging,Vlan1,virtual,true,Management SVI 10.10.30.2/24
+SW3Staging,GigabitEthernet0/0,virtual,true,Uplink toward router network
+SW3Staging,GigabitEthernet0/1,virtual,false,Currently down
+SW3Staging,GigabitEthernet0/2,virtual,false,Currently down
+SW3Staging,GigabitEthernet0/3,virtual,false,Currently down
+SW3Staging,GigabitEthernet1/0,virtual,false,Currently down
+SW3Staging,GigabitEthernet1/1,virtual,false,Currently down
+SW3Staging,GigabitEthernet1/2,virtual,false,Currently down
+SW3Staging,GigabitEthernet1/3,virtual,false,Currently down
+SW3Staging,GigabitEthernet2/0,virtual,false,Currently down
+SW3Staging,GigabitEthernet2/1,virtual,false,Currently down
+SW3Staging,GigabitEthernet2/2,virtual,false,Currently down
+SW3Staging,GigabitEthernet2/3,virtual,false,Currently down
+SW3Staging,GigabitEthernet3/0,virtual,false,Currently down
+SW3Staging,GigabitEthernet3/1,virtual,false,Currently down
+SW3Staging,GigabitEthernet3/2,virtual,false,Currently down
+SW3Staging,GigabitEthernet3/3,virtual,false,Currently down
+SW3Staging,Vlan1,virtual,true,Management SVI 10.10.80.2/24
+SW1Prod,GigabitEthernet0/0,virtual,true,Uplink toward router network
+SW1Prod,GigabitEthernet0/1,virtual,false,Currently down
+SW1Prod,GigabitEthernet0/2,virtual,false,Currently down
+SW1Prod,GigabitEthernet0/3,virtual,false,Currently down
+SW1Prod,GigabitEthernet1/0,virtual,false,Currently down
+SW1Prod,GigabitEthernet1/1,virtual,false,Currently down
+SW1Prod,GigabitEthernet1/2,virtual,false,Currently down
+SW1Prod,GigabitEthernet1/3,virtual,false,Currently down
+SW1Prod,GigabitEthernet2/0,virtual,false,Currently down
+SW1Prod,GigabitEthernet2/1,virtual,false,Currently down
+SW1Prod,GigabitEthernet2/2,virtual,false,Currently down
+SW1Prod,GigabitEthernet2/3,virtual,false,Currently down
+SW1Prod,GigabitEthernet3/0,virtual,false,Currently down
+SW1Prod,GigabitEthernet3/1,virtual,false,Currently down
+SW1Prod,GigabitEthernet3/2,virtual,false,Currently down
+SW1Prod,GigabitEthernet3/3,virtual,false,Currently down
+SW1Prod,Vlan1,virtual,true,Management SVI 10.10.40.2/24
+SW2Prod,GigabitEthernet0/0,virtual,true,Uplink toward router network
+SW2Prod,GigabitEthernet0/1,virtual,false,Currently down
+SW2Prod,GigabitEthernet0/2,virtual,false,Currently down
+SW2Prod,GigabitEthernet0/3,virtual,false,Currently down
+SW2Prod,GigabitEthernet1/0,virtual,false,Currently down
+SW2Prod,GigabitEthernet1/1,virtual,false,Currently down
+SW2Prod,GigabitEthernet1/2,virtual,false,Currently down
+SW2Prod,GigabitEthernet1/3,virtual,false,Currently down
+SW2Prod,GigabitEthernet2/0,virtual,false,Currently down
+SW2Prod,GigabitEthernet2/1,virtual,false,Currently down
+SW2Prod,GigabitEthernet2/2,virtual,false,Currently down
+SW2Prod,GigabitEthernet2/3,virtual,false,Currently down
+SW2Prod,GigabitEthernet3/0,virtual,false,Currently down
+SW2Prod,GigabitEthernet3/1,virtual,false,Currently down
+SW2Prod,GigabitEthernet3/2,virtual,false,Currently down
+SW2Prod,GigabitEthernet3/3,virtual,false,Currently down
+SW2Prod,Vlan1,virtual,true,Management SVI 10.10.50.2/24
+SW3Prod,GigabitEthernet0/0,virtual,true,Uplink toward router network
+SW3Prod,GigabitEthernet0/1,virtual,false,Currently down
+SW3Prod,GigabitEthernet0/2,virtual,false,Currently down
+SW3Prod,GigabitEthernet0/3,virtual,false,Currently down
+SW3Prod,GigabitEthernet1/0,virtual,false,Currently down
+SW3Prod,GigabitEthernet1/1,virtual,false,Currently down
+SW3Prod,GigabitEthernet1/2,virtual,false,Currently down
+SW3Prod,GigabitEthernet1/3,virtual,false,Currently down
+SW3Prod,GigabitEthernet2/0,virtual,false,Currently down
+SW3Prod,GigabitEthernet2/1,virtual,false,Currently down
+SW3Prod,GigabitEthernet2/2,virtual,false,Currently down
+SW3Prod,GigabitEthernet2/3,virtual,false,Currently down
+SW3Prod,GigabitEthernet3/0,virtual,false,Currently down
+SW3Prod,GigabitEthernet3/1,virtual,false,Currently down
+SW3Prod,GigabitEthernet3/2,virtual,false,Currently down
+SW3Prod,GigabitEthernet3/3,virtual,false,Currently down
+SW3Prod,Vlan1,virtual,true,Management SVI 10.10.60.2/24

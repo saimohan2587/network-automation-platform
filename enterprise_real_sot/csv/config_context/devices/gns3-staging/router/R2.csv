@@ -1,0 +1,3 @@
+name,device,data,description
+R2,R2,"{""device_role"":""l3-gateway-router"",""ntp"":{""master"":false,""server"":""10.10.70.1""},""routing"":{""mode"":""connected-only"",""ospf_enabled"":false}}",Device-specific router intent for R2
+

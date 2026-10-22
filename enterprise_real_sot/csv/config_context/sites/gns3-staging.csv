@@ -1,6 +1,5 @@
 key,value
 ntp,"{""enabled"":true,""server"":""10.10.10.2"",""source_interface"":""FastEthernet0/0""}"
-stp,"{""mode"":""rapid-pvst""}"
 dns,"{""domain_name"":""lab.enterprise.internal"",""domain_lookup"":true,""servers"":[""10.10.10.100""]}"
 syslog,"{""logging_buffered"":16384,""facility"":""local7"",""trap"":""informational"",""servers"":[""10.10.10.50""]}"
 snmp,"{""location"":""GNS3-Staging-Rack1"",""contact"":""NetOps-Admin"",""communities"":{""NOC-ReadOnly"":{""access"":""ro""}}}"

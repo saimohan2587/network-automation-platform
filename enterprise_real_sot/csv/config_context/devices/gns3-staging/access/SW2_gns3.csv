@@ -1,3 +1,0 @@
-name,device,data,description
-SW2_gns3,SW2_gns3,"{""vlans"":[{""vid"":30,""name"":""VLAN0030""},{""vid"":40,""name"":""VLAN0040""}],""stp"":{""mode"":""rapid-pvst""}}",Device-specific SW2 intent
-

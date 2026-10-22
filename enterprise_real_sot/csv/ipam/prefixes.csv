@@ -9,5 +9,10 @@ prefix,status,description
 10.10.0.0/16,active,Infrastructure Transit Prefixes
 
 10.10.10.0/24,active,R1 management network
-10.10.20.0/24,active,SW1 LAN and management network
-10.10.30.0/24,active,SW2 LAN and management network
+10.10.20.0/24,active,SW1Staging LAN and management network
+10.10.30.0/24,active,SW2Staging LAN and management network
+10.10.40.0/24,active,SW1Prod LAN and management network
+10.10.50.0/24,active,SW2Prod LAN and management network
+10.10.60.0/24,active,SW3Prod LAN and management network
+10.10.70.0/24,active,R2 LAN and management network
+10.10.80.0/24,active,SW3Staging LAN and management network

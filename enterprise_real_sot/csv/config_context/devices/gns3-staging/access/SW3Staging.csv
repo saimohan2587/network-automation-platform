@@ -1,0 +1,3 @@
+name,device,data,description
+SW3Staging,SW3Staging,"{""vlans"":[{""vid"":50,""name"":""STAGING_DATA""},{""vid"":60,""name"":""STAGING_MGMT""}],""stp"":{""mode"":""rapid-pvst""}}",Device-specific SW3Staging intent
+

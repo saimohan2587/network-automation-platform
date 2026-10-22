@@ -1,0 +1,3 @@
+name,device,data,description
+SW1Prod,SW1Prod,"{""vlans"":[{""vid"":10,""name"":""PROD_DATA_1""},{""vid"":20,""name"":""PROD_VOICE_1""}],""stp"":{""mode"":""rapid-pvst""}}",Device-specific SW1Prod intent
+

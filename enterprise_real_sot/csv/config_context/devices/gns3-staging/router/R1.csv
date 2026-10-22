@@ -1,0 +1,3 @@
+name,device,data,description
+R1,R1,"{""device_role"":""l3-gateway-router"",""ntp"":{""master"":true},""routing"":{""mode"":""connected-only"",""ospf_enabled"":false}}",Device-specific router intent
+

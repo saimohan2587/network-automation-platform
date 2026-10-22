@@ -1,4 +1,0 @@
-name,device,data,description
-SW1_gns3,SW1_gns3,"{""vlans"":[{""vid"":10,""name"":""GNS3_DATA""},{""vid"":20,""name"":""GNS3_VOICE""}],""stp"":{""mode"":""rapid-pvst""}}",Device-specific SW1 intent
-
-
