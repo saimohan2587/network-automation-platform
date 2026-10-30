@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "batch_id": "20261010_122511_SW1_gns3",
+  "created_at": "2026-10-10T12:25:11",
+  "git_commit_sha": "d3b9f60948ace68353dc6e5ed3b56c54925eae38",
+  "deployable": true,
+  "devices": [
+    {
+      "device_id": 20,
+      "device_name": "SW1_gns3",
+      "device_last_updated": "2026-08-19T14:00:40.576459Z",
+      "config_file": "SW1_gns3.cfg",
+      "config_sha256": "cd319721e2f2cb47e5e2694ef517c7ee04f06632c48e1e9800393e81880856d1"
+    }
+  ],
+  "excluded_devices": [],
+  "batch_hash": "910bf6d0eb1bfeb6b2d8e164bf16db34ddcb4f71fb6570d79653e254b6fa7ec1"
+}

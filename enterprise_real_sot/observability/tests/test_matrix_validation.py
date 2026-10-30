@@ -122,8 +122,17 @@ def test_prometheus_yaml_valid_and_targets_present():
         for sc in snmp_job.get("static_configs", [])
         if "labels" in sc and "device_name" in sc["labels"]
     }
-    for required in ("R1_gns3", "SW1_gns3", "SW2_gns3"):
-        assert required in device_names, f"Missing expected staging device target: {required}"
+    for required in (
+        "R1_gns3",
+        "SW1_gns3",
+        "SW2_gns3",
+        "SW3Staging_gns3",
+        "R2_gns3",
+        "SW1Prod_gns3",
+        "SW2Prod_gns3",
+        "SW3Prod_gns3",
+    ):
+        assert required in device_names, f"Missing expected device target: {required}"
 
 
 def test_alertmanager_webhook_and_send_resolved_consistency():

@@ -6,7 +6,7 @@ R1,l3-gateway-router,cisco-7206vxr,cisco-ios,gns3-staging,,,,active
 SW1Staging,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-staging,,,,active
 SW2Staging,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-staging,,,,active
 SW3Staging,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-staging,,,,active
-R2,l3-gateway-router,cisco-7206vxr,cisco-ios,gns3-staging,,,,active
-SW1Prod,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-staging,,,,active
-SW2Prod,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-staging,,,,active
-SW3Prod,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-staging,,,,active
+R2,l3-gateway-router,cisco-7206vxr,cisco-ios,gns3-production,,,,active
+SW1Prod,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-production,,,,active
+SW2Prod,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-production,,,,active
+SW3Prod,layer-2-access-switch,cisco-iosv-l2,cisco-ios,gns3-production,,,,active

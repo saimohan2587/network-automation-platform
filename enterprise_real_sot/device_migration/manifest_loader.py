@@ -19,7 +19,7 @@ class PatternMapping:
 
 
 @dataclass
-class MigrationPair:
+class MigrationPair:    
     source_device: str
     target_device: str
     site: str = ""

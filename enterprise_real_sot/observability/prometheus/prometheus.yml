@@ -28,25 +28,63 @@ scrape_configs:
       module: ["cisco_ios"]
       auth: ["public_v2"]
     static_configs:
+      # --- Staging Fleet ---
       - targets:
           - "10.10.10.2"
         labels:
           device_name: "R1_gns3"
-          site: "hyderabad"
+          site: "gns3-staging"
           device_role: "router"
           vendor_os: "cisco_ios"
       - targets:
           - "10.10.20.2"
         labels:
           device_name: "SW1_gns3"
-          site: "hyderabad"
+          site: "gns3-staging"
           device_role: "access"
           vendor_os: "cisco_ios"
       - targets:
           - "10.10.30.2"
         labels:
           device_name: "SW2_gns3"
-          site: "hyderabad"
+          site: "gns3-staging"
+          device_role: "access"
+          vendor_os: "cisco_ios"
+      - targets:
+          - "10.10.80.2"
+        labels:
+          device_name: "SW3Staging_gns3"
+          site: "gns3-staging"
+          device_role: "access"
+          vendor_os: "cisco_ios"
+
+      # --- Production Fleet ---
+      - targets:
+          - "10.10.70.2"
+        labels:
+          device_name: "R2_gns3"
+          site: "gns3-staging"
+          device_role: "router"
+          vendor_os: "cisco_ios"
+      - targets:
+          - "10.10.40.2"
+        labels:
+          device_name: "SW1Prod_gns3"
+          site: "gns3-staging"
+          device_role: "access"
+          vendor_os: "cisco_ios"
+      - targets:
+          - "10.10.50.2"
+        labels:
+          device_name: "SW2Prod_gns3"
+          site: "gns3-staging"
+          device_role: "access"
+          vendor_os: "cisco_ios"
+      - targets:
+          - "10.10.60.2"
+        labels:
+          device_name: "SW3Prod_gns3"
+          site: "gns3-staging"
           device_role: "access"
           vendor_os: "cisco_ios"
     relabel_configs:

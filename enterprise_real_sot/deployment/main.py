@@ -54,6 +54,7 @@ class DeploymentRequest:
     # onto every DeploymentResult produced by this run.
     approved_by: Optional[str] = None
     approval_ref: Optional[str] = None
+    target_environment: Optional[str] = None
 
 
 # Result dataclass capturing Pre-Deployment Assessment outcomes for a single target device.
@@ -166,7 +167,7 @@ class DeploymentOrchestrator:
             # Phase 4 -- write deployment_result.json AFTER approval metadata is
             # stamped, so the record on disk (which cd-deploy.yml reads back)
             # actually contains --approved-by/--approval-ref, not their defaults.
-            if summary.artifact_dir and summary.results:
+            if summary.artifact_dir:
                 try:
                     from deployment.artifact_manager import write_deployment_result
                     result_path = write_deployment_result(Path(summary.artifact_dir), summary)
@@ -310,8 +311,27 @@ class DeploymentOrchestrator:
                 )
             )
 
-        # Execute SSH deployment (or dry-run) for candidates
+        # Filter candidates by target_environment if specified
+        target_env = (deployment_request.target_environment or "all").strip().lower()
+        active_candidates: List[AssessmentResult] = []
         for candidate in deployment_candidates:
+            if target_env in ("all", "", "none"):
+                active_candidates.append(candidate)
+            else:
+                from deployment.environment import resolve_device_environment
+                dev_env = resolve_device_environment(candidate.device, {"device_name": candidate.device_name})
+                if dev_env == target_env:
+                    active_candidates.append(candidate)
+                else:
+                    logger.info(
+                        "Device '%s' environment is '%s', skipping for target_environment='%s'.",
+                        candidate.device_name,
+                        dev_env,
+                        target_env,
+                    )
+
+        # Execute SSH deployment (or dry-run) for candidates
+        for candidate in active_candidates:
             deployment_results.append(
                 self._deploy_candidate(candidate, deployment_request)
             )
@@ -429,9 +449,40 @@ class DeploymentOrchestrator:
                 )
             )
 
+        # Filter candidates by target_environment if specified (staging vs. production gating)
+        target_env = (deployment_request.target_environment or "all").strip().lower()
+        active_candidates: List[AssessmentResult] = []
+        skipped_env_candidates: List[AssessmentResult] = []
+
+        from deployment.environment import resolve_device_environment
+
+        for candidate in deployment_candidates:
+            if target_env in ("all", "", "none"):
+                active_candidates.append(candidate)
+            else:
+                dev_env = resolve_device_environment(candidate.device, {"device_name": candidate.device_name})
+                if dev_env == target_env:
+                    active_candidates.append(candidate)
+                else:
+                    logger.info(
+                        "Device '%s' environment is '%s', skipping for target_environment='%s'.",
+                        candidate.device_name,
+                        dev_env,
+                        target_env,
+                    )
+                    skipped_env_candidates.append(candidate)
+
+        logger.info(
+            "Environment filtering for '%s': Candidates=%d, Active=%d, Skipped=%d.",
+            target_env,
+            len(deployment_candidates),
+            len(active_candidates),
+            len(skipped_env_candidates),
+        )
+
         # Reuse the existing deploy path unchanged (handles dry_run vs. live SSH,
         # backup, selective push, rollback, save-config -- none of that changes).
-        for candidate in deployment_candidates:
+        for candidate in active_candidates:
             deployment_results.append(self._deploy_candidate(candidate, deployment_request))
 
         # =========================================================================
@@ -445,7 +496,7 @@ class DeploymentOrchestrator:
             result_by_device_name = {res.device_name: res for res in deployment_results}
             devices_to_verify = [
                 candidate.device
-                for candidate in deployment_candidates
+                for candidate in active_candidates
                 if candidate.device is not None
                 and result_by_device_name.get(candidate.device_name) is not None
                 and result_by_device_name[candidate.device_name].deployment_status == "success"
@@ -475,16 +526,16 @@ class DeploymentOrchestrator:
                     logger.warning("Post-deployment ComplianceOrchestrator execution warning: %s", comp_err)
 
         summary = self._build_summary(
-            selected_device_count=len(assessment_results),
-            assessment_passed_count=len(deployment_candidates),
+            selected_device_count=len(active_candidates),
+            assessment_passed_count=len(active_candidates),
             assessment_failed_count=len(identity_failures),
-            skipped_device_count=len(identity_failures),
+            skipped_device_count=len(identity_failures) + len(skipped_env_candidates),
             assessment_results=assessment_results,
             results=deployment_results,
             artifact_dir=str(artifact_dir),
         )
         self._log_summary(summary)
-        return summary
+        return self._apply_approval_metadata(summary, deployment_request)
 
     def _build_candidate_from_artifact(
         self,

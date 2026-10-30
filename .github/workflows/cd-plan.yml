@@ -9,11 +9,11 @@ name: CD Plan (Phase 3 -- Plan Only, No Device Connections)
       target:
         description: >
           Device selection criteria, in the exact format `deployment/cli.py --devices`
-          already accepts: a single device name ("sw-access-01"), a comma-separated
-          device name list, or a "key:value" NetBox filter ("site:gns3-staging",
-          "role:access"). Defaults to this project's GNS3 staging site.
+          already accepts: a single device name ("R1"), a comma-separated device name
+          list, or a "key:value" NetBox filter (e.g. "site:gns3-staging",
+          "site:gns3-production", or "site:gns3-staging,site:gns3-production").
         required: false
-        default: "site:gns3-staging"
+        default: "site:gns3-staging,site:gns3-production"
       protocols:
         description: Comma-separated protocol plugin names, or "all" (same as `deployment/cli.py --protocols`).
         required: false

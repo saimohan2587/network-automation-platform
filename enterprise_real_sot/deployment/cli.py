@@ -108,6 +108,15 @@ Examples:
         help="Audit metadata: an approval reference (e.g. a GitHub Actions run URL or run ID). "
         "Recorded on every deployment result; does not itself grant deployment permission.",
     )
+    # Staging vs. Production deployment gating tollgate
+    parser.add_argument(
+        "--environment",
+        "--env",
+        dest="environment",
+        choices=["all", "staging", "production"],
+        default="all",
+        help="Target deployment environment ('staging', 'production', or 'all'). Default: 'all'.",
+    )
     # Parse and return command line arguments namespace
     parsed = parser.parse_args(args)
     if not parsed.use_artifact_dir and not parsed.devices:
@@ -291,10 +300,12 @@ def print_artifact_preflight_summary(
     sync_sot_requested: bool,
     approved_by: Optional[str],
     approval_ref: Optional[str],
+    target_environment: Optional[str] = "all",
 ) -> None:
     """Display pre-flight summary for Phase 1 --use-artifact-dir deployment mode."""
     print("\n========== ARTIFACT DEPLOYMENT MODE (Phase 1 -- Exact Artifact) ==========")
     print(f"  Artifact Directory        : {artifact_dir}")
+    print(f"  Target Environment        : {(target_environment or 'all').upper()}")
     print("  Configuration Source      : EXACT .cfg files from manifest.json (never regenerated)")
     print(f"  Save Configuration        : {'YES' if save_config else 'NO'}")
     print(f"  Dry-Run Mode              : {'YES (Safety Mode — No SSH)' if dry_run else 'NO (Live Execution)'}")
@@ -324,6 +335,7 @@ def main(raw_args: Sequence[str] = None) -> int:
             sync_sot_requested=args.sync_sot,
             approved_by=args.approved_by,
             approval_ref=args.approval_ref,
+            target_environment=args.environment,
         )
 
         request = DeploymentRequest(
@@ -335,6 +347,7 @@ def main(raw_args: Sequence[str] = None) -> int:
             sync_sot=False,  # never implicit or explicit in artifact mode -- see docstring above
             approved_by=args.approved_by,
             approval_ref=args.approval_ref,
+            target_environment=args.environment,
         )
 
         orchestrator = DeploymentOrchestrator()
@@ -383,6 +396,7 @@ def main(raw_args: Sequence[str] = None) -> int:
         sync_sot=args.sync_sot,
         approved_by=args.approved_by,
         approval_ref=args.approval_ref,
+        target_environment=args.environment,
     )
 
     # Instantiate deployment orchestrator and execute request

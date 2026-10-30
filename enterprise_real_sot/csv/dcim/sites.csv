@@ -1,3 +1,4 @@
 name,slug,region,group,status
 Hyderabad,hyderabad,india,telangana,active
 GNS3 Staging,gns3-staging,india,telangana,active
+GNS3 Production,gns3-production,india,telangana,active

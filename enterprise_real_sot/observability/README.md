@@ -65,9 +65,17 @@ Observability in this stack is strictly isolated to **network device telemetry**
 
 ## 3. Target Devices Configuration
 
-- **R1_gns3** (`10.10.10.2`): Router (Cisco IOS)
-- **SW1_gns3** (`10.10.20.2`): Access Switch (Cisco IOS)
-- **SW2_gns3** (`10.10.30.2`): Access Switch (Cisco IOS)
+### Staging Devices
+- **R1_gns3** (`10.10.10.2`): L3 Gateway Router (Cisco IOS 7206VXR)
+- **SW1_gns3** (`10.10.20.2`): Access Switch (Cisco IOSvL2)
+- **SW2_gns3** (`10.10.30.2`): Access Switch (Cisco IOSvL2)
+- **SW3Staging_gns3** (`10.10.80.2`): Access Switch (Cisco IOSvL2)
+
+### Production Devices
+- **R2_gns3** (`10.10.70.2`): L3 Gateway Router (Cisco IOS 7206VXR)
+- **SW1Prod_gns3** (`10.10.40.2`): Access Switch (Cisco IOSvL2)
+- **SW2Prod_gns3** (`10.10.50.2`): Access Switch (Cisco IOSvL2)
+- **SW3Prod_gns3** (`10.10.60.2`): Access Switch (Cisco IOSvL2)
 
 ---
 
