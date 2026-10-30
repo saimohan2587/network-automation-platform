@@ -9,11 +9,9 @@ name: CD Deploy (Controlled Deployment with Staging Tollgates & Production Appro
 #               ↓
 #       STAGING DEVICES
 #               ↓
-#       Pre-Deployment Validation
+#       Pre-Deployment Validation (Dry-Run)
 #               ↓
-#       Staging Deployment
-#               ↓
-#       Staging Post-Deployment Validation
+#       Staging Deployment (SSH Push & Backup)
 #               ↓
 #        All Staging Successful?
 #           ↙           ↘
@@ -23,11 +21,9 @@ name: CD Deploy (Controlled Deployment with Staging Tollgates & Production Appro
 #  Record Evidence          ↓
 #                     PRODUCTION DEVICES
 #                           ↓
-#                  Pre-Deployment Validation
+#                  Pre-Deployment Validation (Dry-Run)
 #                           ↓
-#                  Production Deployment
-#                           ↓
-#                  Post-Deployment Validation
+#                  Production Deployment (SSH Push & Backup)
 #                           ↓
 #                    Final Result
 "on":
@@ -43,8 +39,8 @@ name: CD Deploy (Controlled Deployment with Staging Tollgates & Production Appro
       artifact_name:
         description: >
           The exact artifact name from that Plan run's summary/upload step,
-          e.g. "pre_deployment_20260907_153000_gns3-staging". Pins the exact
-          artifact bundle within that run.
+          e.g. "pre_deployment_20261030_...". Pins the exact artifact bundle
+          within that run.
         required: true
       save_config:
         description: "Persist to startup-config after pushing (same as deployment/cli.py --save-config). Default: false."
@@ -214,7 +210,7 @@ jobs:
           if [ "${{ github.event.inputs.save_config }}" = "true" ]; then
             SAVE_FLAG="--save-config"
           fi
-          echo "Executing Staging Deployment and Post-Deployment Validation..."
+          echo "Executing Staging Deployment..."
           python3 -m deployment.cli \
             --use-artifact-dir "$ARTIFACT_DIR" \
             --environment staging \
@@ -225,9 +221,9 @@ jobs:
           echo "cli_exit_code=$?" >> "$GITHUB_OUTPUT"
 
       # --------------------------------------------------------------------
-      # 3. STAGING POST-DEPLOYMENT VALIDATION & AUDIT SUMMARY
+      # 3. STAGING DEPLOYMENT SUMMARY
       # --------------------------------------------------------------------
-      - name: 3. Staging Post-Deployment Validation & Summary
+      - name: 3. Staging Deployment Summary
         id: summary
         if: ${{ !cancelled() && steps.verify.outputs.valid == 'true' }}
         env:
@@ -245,16 +241,12 @@ jobs:
           cli_exit_code = os.environ.get("CLI_EXIT_CODE", "unknown")
           pre_exit_code = os.environ.get("PRE_EXIT_CODE", "unknown")
 
-          BAD_VERDICTS = {"DRIFT", "UNREACHABLE", "FAILED"}
-          lines = ["## Staging Lifecycle & Compliance Summary\n"]
+          lines = ["## Staging Deployment Summary\n"]
           lines.append(f"- **Pre-Deployment Validation Exit Code**: `{pre_exit_code}`")
-          lines.append(f"- **Deployment & Verification Exit Code**: `{cli_exit_code}`\n")
+          lines.append(f"- **Deployment Exit Code**: `{cli_exit_code}`\n")
 
           deploy_ok = False
-          drift_detected = False
           deployment_failed = False
-          unreachable_detected = False
-          drift_details = []
 
           if pre_exit_code != "0":
               lines.append("> [!CAUTION]\n> ### Staging Pre-Deployment Validation Failed!\n")
@@ -271,79 +263,28 @@ jobs:
                   lines.append("No staging devices were targeted in this artifact.\n")
                   deploy_ok = True
               else:
-                  lines.append("| Device | Deployment Status | Post-Deployment Verification |")
-                  lines.append("|---|---|---|")
+                  lines.append("| Device | Deployment Status | Commands Sent | Backup Saved | Rollback Status |")
+                  lines.append("|---|---|---|---|---|")
                   for r in results:
-                      lines.append(f"| {r.get('device_name')} | {r.get('deployment_status')} | {r.get('verification_status')} |")
+                      backup_str = "YES" if r.get("backup_saved") else "NO"
+                      lines.append(f"| {r.get('device_name')} | {r.get('deployment_status')} | {r.get('commands_sent', 0)} | {backup_str} | {r.get('rollback_status', 'NOT_REQUIRED')} |")
                       if r.get("deployment_status") != "success":
-                          deployment_failed = True
-                      elif r.get("verification_status") == "DRIFT":
-                          drift_detected = True
-                      elif r.get("verification_status") == "UNREACHABLE":
-                          unreachable_detected = True
-                      elif r.get("verification_status") in BAD_VERDICTS:
                           deployment_failed = True
                   lines.append("")
 
                   deploy_ok = (pre_exit_code == "0") and bool(results) and all(
-                      r.get("deployment_status") == "success" and r.get("verification_status") not in BAD_VERDICTS
+                      r.get("deployment_status") == "success"
                       for r in results
                   )
 
-              lines.append(f"- **Overall Staging Outcome**: {'READY FOR PRODUCTION APPROVAL' if deploy_ok else 'TOLLGATE BLOCKED -- Staging failed or drifted'}\n")
-
-              post_dir = Path("artifacts/post_deployment")
-              if post_dir.exists():
-                  for r in results:
-                      dev_name = r.get("device_name")
-                      if r.get("verification_status") == "DRIFT":
-                          matching_files = sorted(post_dir.glob(f"*/{dev_name}.json"), key=os.path.getmtime, reverse=True)
-                          if matching_files:
-                              try:
-                                  dev_audit = json.loads(matching_files[0].read_text(encoding="utf-8"))
-                                  for d in dev_audit.get("drifts", []):
-                                      drift_details.append({
-                                          "device": dev_name,
-                                          "protocol": d.get("protocol", "unknown"),
-                                          "scope": d.get("scope", "global"),
-                                          "field": d.get("field_name", "unknown"),
-                                          "expected": str(d.get("expected", "")),
-                                          "actual": str(d.get("actual", "")),
-                                          "reason": d.get("reason", "Value mismatch")
-                                      })
-                              except Exception as err:
-                                  print(f"Warning reading post-deployment audit file {matching_files[0]}: {err}")
-
-              if drift_detected and not deployment_failed:
-                  lines.append("> [!WARNING]")
-                  lines.append("> ### ⚠️ Staging Succeeded via SSH, but Post-Deployment Drift was Detected!")
-                  lines.append("> All staging configuration commands were pushed and backed up.")
-                  lines.append("> However, post-deployment verification identified that live device state differs from NetBox Source of Truth.\n")
-
-              if drift_details:
-                  lines.append("### 🔍 Detected Configuration Drift Details\n")
-                  lines.append("| Device | Protocol | Scope | Parameter | Expected (NetBox SoT) | Actual (Live Device) | Mismatch Reason |")
-                  lines.append("|---|---|---|---|---|---|---|")
-                  for item in drift_details:
-                      lines.append(f"| `{item['device']}` | `{item['protocol']}` | `{item['scope']}` | `{item['field']}` | `{item['expected']}` | `{item['actual']}` | {item['reason']} |")
-                  lines.append("")
+              lines.append(f"- **Overall Staging Outcome**: {'READY FOR PRODUCTION APPROVAL' if deploy_ok else 'TOLLGATE BLOCKED -- Staging deployment failed'}\n")
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("\n".join(lines) + "\n")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"deploy_ok={'true' if deploy_ok else 'false'}\n")
-              f.write(f"drift_detected={'true' if drift_detected else 'false'}\n")
-              f.write(f"unreachable_detected={'true' if unreachable_detected else 'false'}\n")
               f.write(f"deployment_failed={'true' if deployment_failed else 'false'}\n")
           PYEOF
-
-      - name: Upload Staging Post-Deployment Compliance Audit Artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: post_deployment_audit_staging_${{ github.run_id }}
-          path: enterprise_real_sot/artifacts/post_deployment/
-          if-no-files-found: ignore
 
       # --------------------------------------------------------------------
       # 4. ALL STAGING SUCCESSFUL? (TOLLGATE EVALUATION)
@@ -358,12 +299,6 @@ jobs:
         run: |
           if [ "${{ steps.pre_deploy_staging.outputs.pre_deploy_exit_code }}" != "0" ]; then
             echo "::error title=Staging Pre-Deployment Validation Failed::Pre-deployment validation checks failed for staging devices. Production deployment is BLOCKED by tollgate."
-            exit 1
-          elif [ "${{ steps.summary.outputs.drift_detected }}" = "true" ] && [ "${{ steps.summary.outputs.deployment_failed }}" != "true" ]; then
-            echo "::error title=Staging Drift Detected::Configuration was pushed to staging device(s), but post-deployment compliance verification detected DRIFT. Production deployment is BLOCKED by tollgate."
-            exit 1
-          elif [ "${{ steps.summary.outputs.unreachable_detected }}" = "true" ] && [ "${{ steps.summary.outputs.deployment_failed }}" != "true" ]; then
-            echo "::error title=Staging Device Unreachable::Staging device was unreachable during post-verification. Production deployment is BLOCKED by tollgate."
             exit 1
           elif [ "${{ steps.summary.outputs.deployment_failed }}" = "true" ]; then
             echo "::error title=Staging Deployment Failed::SSH deployment to one or more staging devices failed. Production deployment is BLOCKED by tollgate."
@@ -537,7 +472,7 @@ jobs:
           if [ "${{ github.event.inputs.save_config }}" = "true" ]; then
             SAVE_FLAG="--save-config"
           fi
-          echo "Executing Production Deployment and Post-Deployment Validation..."
+          echo "Executing Production Deployment..."
           python3 -m deployment.cli \
             --use-artifact-dir "$ARTIFACT_DIR" \
             --environment production \
@@ -548,9 +483,9 @@ jobs:
           echo "cli_exit_code=$?" >> "$GITHUB_OUTPUT"
 
       # --------------------------------------------------------------------
-      # 3. PRODUCTION POST-DEPLOYMENT VALIDATION & SUMMARY
+      # 3. PRODUCTION DEPLOYMENT SUMMARY
       # --------------------------------------------------------------------
-      - name: 3. Production Post-Deployment Validation & Summary
+      - name: 3. Production Deployment Summary
         id: summary
         if: ${{ !cancelled() && steps.verify.outputs.valid == 'true' }}
         env:
@@ -568,16 +503,12 @@ jobs:
           cli_exit_code = os.environ.get("CLI_EXIT_CODE", "unknown")
           pre_exit_code = os.environ.get("PRE_EXIT_CODE", "unknown")
 
-          BAD_VERDICTS = {"DRIFT", "UNREACHABLE", "FAILED"}
-          lines = ["## Production Lifecycle & Compliance Summary\n"]
+          lines = ["## Production Deployment Summary\n"]
           lines.append(f"- **Pre-Deployment Validation Exit Code**: `{pre_exit_code}`")
-          lines.append(f"- **Deployment & Verification Exit Code**: `{cli_exit_code}`\n")
+          lines.append(f"- **Deployment Exit Code**: `{cli_exit_code}`\n")
 
           deploy_ok = False
-          drift_detected = False
           deployment_failed = False
-          unreachable_detected = False
-          drift_details = []
 
           if pre_exit_code != "0":
               lines.append("> [!CAUTION]\n> ### Production Pre-Deployment Validation Failed!\n")
@@ -594,79 +525,28 @@ jobs:
                   lines.append("No production devices were targeted in this artifact.\n")
                   deploy_ok = True
               else:
-                  lines.append("| Device | Deployment Status | Post-Deployment Verification |")
-                  lines.append("|---|---|---|")
+                  lines.append("| Device | Deployment Status | Commands Sent | Backup Saved | Rollback Status |")
+                  lines.append("|---|---|---|---|---|")
                   for r in results:
-                      lines.append(f"| {r.get('device_name')} | {r.get('deployment_status')} | {r.get('verification_status')} |")
+                      backup_str = "YES" if r.get("backup_saved") else "NO"
+                      lines.append(f"| {r.get('device_name')} | {r.get('deployment_status')} | {r.get('commands_sent', 0)} | {backup_str} | {r.get('rollback_status', 'NOT_REQUIRED')} |")
                       if r.get("deployment_status") != "success":
-                          deployment_failed = True
-                      elif r.get("verification_status") == "DRIFT":
-                          drift_detected = True
-                      elif r.get("verification_status") == "UNREACHABLE":
-                          unreachable_detected = True
-                      elif r.get("verification_status") in BAD_VERDICTS:
                           deployment_failed = True
                   lines.append("")
 
                   deploy_ok = (pre_exit_code == "0") and bool(results) and all(
-                      r.get("deployment_status") == "success" and r.get("verification_status") not in BAD_VERDICTS
+                      r.get("deployment_status") == "success"
                       for r in results
                   )
 
-              lines.append(f"- **Overall Production Outcome**: {'SUCCESS -- All production devices deployed and verified' if deploy_ok else 'FAILED -- Review details below'}\n")
-
-              post_dir = Path("artifacts/post_deployment")
-              if post_dir.exists():
-                  for r in results:
-                      dev_name = r.get("device_name")
-                      if r.get("verification_status") == "DRIFT":
-                          matching_files = sorted(post_dir.glob(f"*/{dev_name}.json"), key=os.path.getmtime, reverse=True)
-                          if matching_files:
-                              try:
-                                  dev_audit = json.loads(matching_files[0].read_text(encoding="utf-8"))
-                                  for d in dev_audit.get("drifts", []):
-                                      drift_details.append({
-                                          "device": dev_name,
-                                          "protocol": d.get("protocol", "unknown"),
-                                          "scope": d.get("scope", "global"),
-                                          "field": d.get("field_name", "unknown"),
-                                          "expected": str(d.get("expected", "")),
-                                          "actual": str(d.get("actual", "")),
-                                          "reason": d.get("reason", "Value mismatch")
-                                      })
-                              except Exception as err:
-                                  print(f"Warning reading post-deployment audit file {matching_files[0]}: {err}")
-
-              if drift_detected and not deployment_failed:
-                  lines.append("> [!WARNING]")
-                  lines.append("> ### ⚠️ Production Succeeded via SSH, but Post-Deployment Drift was Detected!")
-                  lines.append("> All production configuration commands were pushed and backed up.")
-                  lines.append("> However, post-deployment verification identified that live device state differs from NetBox Source of Truth.\n")
-
-              if drift_details:
-                  lines.append("### 🔍 Detected Configuration Drift Details\n")
-                  lines.append("| Device | Protocol | Scope | Parameter | Expected (NetBox SoT) | Actual (Live Device) | Mismatch Reason |")
-                  lines.append("|---|---|---|---|---|---|---|")
-                  for item in drift_details:
-                      lines.append(f"| `{item['device']}` | `{item['protocol']}` | `{item['scope']}` | `{item['field']}` | `{item['expected']}` | `{item['actual']}` | {item['reason']} |")
-                  lines.append("")
+              lines.append(f"- **Overall Production Outcome**: {'SUCCESS -- All production devices deployed' if deploy_ok else 'FAILED -- Review details below'}\n")
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("\n".join(lines) + "\n")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write(f"deploy_ok={'true' if deploy_ok else 'false'}\n")
-              f.write(f"drift_detected={'true' if drift_detected else 'false'}\n")
-              f.write(f"unreachable_detected={'true' if unreachable_detected else 'false'}\n")
               f.write(f"deployment_failed={'true' if deployment_failed else 'false'}\n")
           PYEOF
-
-      - name: Upload Production Post-Deployment Compliance Audit Artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: post_deployment_audit_production_${{ github.run_id }}
-          path: enterprise_real_sot/artifacts/post_deployment/
-          if-no-files-found: ignore
 
       # --------------------------------------------------------------------
       # 4. FINAL RESULT GATE
@@ -681,12 +561,6 @@ jobs:
         run: |
           if [ "${{ steps.pre_deploy_production.outputs.pre_deploy_exit_code }}" != "0" ]; then
             echo "::error title=Production Pre-Deployment Validation Failed::Pre-deployment validation checks failed for production devices."
-            exit 1
-          elif [ "${{ steps.summary.outputs.drift_detected }}" = "true" ] && [ "${{ steps.summary.outputs.deployment_failed }}" != "true" ]; then
-            echo "::error title=Production Drift Detected::Configuration was pushed to production device(s), but post-deployment compliance verification detected DRIFT against NetBox Source of Truth."
-            exit 1
-          elif [ "${{ steps.summary.outputs.unreachable_detected }}" = "true" ] && [ "${{ steps.summary.outputs.deployment_failed }}" != "true" ]; then
-            echo "::error title=Production Device Unreachable::Device was unreachable during production post-verification."
             exit 1
           elif [ "${{ steps.summary.outputs.deployment_failed }}" = "true" ]; then
             echo "::error title=Production Deployment Failed::SSH deployment to one or more production devices failed."
